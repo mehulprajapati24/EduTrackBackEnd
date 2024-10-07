@@ -2,25 +2,16 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const sessionSchema = new Schema({
-    timeFrom: {
+    time: {
         type: String,
-        required: true,
-    },
-    timeTo: {
-        type: String,
-        required: true,
     },
     subject: {
         type: String,
     },
     type: {
         type: String,
-        required: true,
     },
     batch: {
-        type: String,
-    },
-    freeSessionBatch: {
         type: String,
     },
     location: {
@@ -31,16 +22,16 @@ const sessionSchema = new Schema({
     }
 });
 
-const daySchema = new Schema({
-  day: {
-    type: String,
-    required: true,
-  },
-  sessions: {
-    type: [sessionSchema],
-    required: true
-  }
-});
+// const daySchema = new Schema({
+//   day: {
+//     type: String,
+//     required: true,
+//   },
+//   sessions: {
+//     type: [sessionSchema],
+//     required: true
+//   }
+// });
 
 const TimeTableSchema = new Schema({
   academicYear: {
@@ -55,9 +46,13 @@ const TimeTableSchema = new Schema({
     type: String,
     required: true,
   },
-  days: {
-    type: [daySchema],
-    required: true,
+  weeklyTimetable: {
+    Monday: [sessionSchema],
+    Tuesday: [sessionSchema],
+    Wednesday: [sessionSchema],
+    Thursday: [sessionSchema],
+    Friday: [sessionSchema],
+    Saturday: [sessionSchema]
   }
 });
 

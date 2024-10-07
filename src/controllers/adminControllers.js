@@ -1,11 +1,34 @@
 // const Timetable = require("../model/AdminTimeTableModel")
 const ClassBatch = require("../model/AdminClassBatchModel")
 const Timetable = require("../model/AdminTimeTableModel")
+const Session = require("../model/SessionModel")
 const Admin = require("../model/AdminModel")
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 
 require('dotenv').config();
+
+const createSession = async (req, res) => {
+    try {
+        const { academicYear, semester, times } = req.body;
+    
+        // Create a new session
+        const newSession = new Session({
+          academicYear,
+          semester,
+          times,
+        });
+    
+        // Save session to the database
+        await newSession.save();
+    
+        // Respond with success
+        res.status(201).json({ message: 'Session created successfully', session: newSession });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+}
 
 const createClassBatch = async (req, res) => {
     const {academicYear, semester, classes, batches} = req.body;
@@ -33,7 +56,7 @@ const createClassBatch = async (req, res) => {
 
 const createTimeTable = async (req, res) => {
     try{
-        const {academicYear, semester, day, selectedClass, sessions} = req.body;
+        const { academicYear, semester, selectedClass, weeklyTimetable } = req.body;
 
         let timetable = await Timetable.findOne({
             academicYear,
@@ -42,20 +65,12 @@ const createTimeTable = async (req, res) => {
         });
 
         if (timetable) {
-            // If timetable exists, check if the day already exists in the timetable
-            let existingDay = timetable.days.find(d => d.day === day);
-            if (existingDay) {
-                // If the day exists, append the new sessions to the existing day
-                existingDay.sessions.push(...sessions);
-            } else {
-                // If the day does not exist, add a new day with sessions
-                timetable.days.push({ day, sessions });
-            }
+            timetable.weeklyTimetable = weeklyTimetable;
 
             await timetable.save();
 
             res.status(200).json({
-                message: "Timetable updated successfully with new sessions",
+                message: "Timetable updated successfully",
                 timetable
             });
         } else{
@@ -63,7 +78,7 @@ const createTimeTable = async (req, res) => {
                 academicYear,
                 semester,
                 class: selectedClass,
-                days: [{ day, sessions}]
+                weeklyTimetable
             });
 
             await newTimetable.save();
@@ -103,7 +118,7 @@ const validateAdmin = async (req, res) => {
     }
 
     const accessToken = jwt.sign({ adminId: admin._id, email: admin.email }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "30m",
+        expiresIn: "1d",
     });
 
     return res.status(200).json({ 
@@ -118,6 +133,25 @@ const validate = async (req, res) => {
         error: false,
         admin: req.user,
      });
+}
+
+const getTimes = async (req, res) => {
+    const { academicYear, semester } = req.query;
+
+    try {
+        const session = await Session.findOne({ academicYear, semester });
+
+        if (!session) {
+            return res.json({ error: true, message: "No session found for the provided academic year and semester." });
+        }
+
+        res.status(200).json({
+            times: session.times,
+        });
+    } catch (error) {
+        // Handle any errors
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
 }
 
 const getClassesBatches = async (req, res) => {
@@ -150,5 +184,7 @@ module.exports = {
     validate,
     createClassBatch,
     getClassesBatches,
-    createTimeTable
+    createTimeTable,
+    createSession,
+    getTimes
 }

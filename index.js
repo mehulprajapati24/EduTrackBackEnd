@@ -12,7 +12,7 @@ app.use(cors());
 
 async function main() {
     await mongoose.connect(process.env.CONNECTION_STRING, {
-    serverSelectionTimeoutMS: 5000 // Timeout after 5 seconds instead of the default 30 seconds
+    serverSelectionTimeoutMS: 10000 // Timeout after 5 seconds instead of the default 30 seconds
 });
 
 }
@@ -24,8 +24,10 @@ app.get("/", (req, res)=>{
 })
 
 const AdminRoutes = require('./src/routes/adminRoutes')
+const StudentRoutes = require('./src/routes/studentRoutes')
 
 app.use('/admin', AdminRoutes);
+app.use('/', StudentRoutes);
 
 app.listen(port, ()=>{
     console.log(`EduTrack listening on port ${port}`);
