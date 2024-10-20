@@ -10,14 +10,20 @@ const ClassBatchSchema = new Schema({
     type: String,
     required: true,
   },
-  classes: {
-    type: [String], // Array of strings
-    required: true,
-  },
-  batches: {
-    type: [String], // Array of strings
-    required: true,
-  },
+  classes: [
+    {
+      className: {
+        type: String,
+        required: true,
+      },
+      batches: [
+        {
+          type: String,
+          required: true,
+        },
+      ],
+    },
+  ],
 });
 
 const ClassBatch = mongoose.model('ClassBatch', ClassBatchSchema);
