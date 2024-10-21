@@ -552,7 +552,7 @@ const getTimetableBasedOnSheetName = async (req, res) => {
     //   console.log('Received sheetName:', sheetName);
 
     
-      let timetable;
+      let timetable1;
   
       // Assuming you have two different models for class and faculty timetables
       
@@ -575,8 +575,19 @@ const getTimetableBasedOnSheetName = async (req, res) => {
             range: sheetName, // Adjust according to your sheet name
           });
 
-        timetable = response.data.values;
-        // console.log(timetable);
+        timetable1 = response.data.values;
+        timetable1[0][0] = timetable1[0][0].split("/").reverse().join("/");
+
+        let timetable = [];
+        for(let i=0; i<timetable1.length; i++){
+            for(let j=0; j<timetable1[i].length; j++){
+                if (!timetable[j]) {
+                    // Initialize timetable[j] as an empty array if it doesn't exist
+                    timetable[j] = [];
+                }
+                timetable[j][i] = timetable1[i][j];
+            }
+        }
   
         res.json({ timetable });
       
@@ -603,14 +614,26 @@ const getTimetableBasedOnSheetName = async (req, res) => {
 
         var dayWiseTimetable = [];
         dayWiseTimetable = timetable.filter((row)=> row[0]==day);
-        var dayWiseTimetableData = [];
-        dayWiseTimetableData.push(timetable[0]);
+        var dayWiseTimetableData1 = [];
+        dayWiseTimetableData1.push(timetable[0]);
 
         for(let row of dayWiseTimetable){
-            dayWiseTimetableData.push(row);
+            dayWiseTimetableData1.push(row);
         }
 
-        // console.log(dayWiseTimetableData);
+        dayWiseTimetableData1[0][0] = dayWiseTimetableData1[0][0].split("/").reverse().join("/");
+
+        // console.log(dayWiseTimetableData1);
+
+        let dayWiseTimetableData = [];
+        for(let i=0; i<dayWiseTimetableData1.length; i++){
+            for(let j=0; j<dayWiseTimetableData1[i].length; j++){
+                if (!dayWiseTimetableData[j]) {
+                    dayWiseTimetableData[j] = [];
+                }
+                dayWiseTimetableData[j][i] = dayWiseTimetableData1[i][j];
+            }
+        }
         res.json({ dayWiseTimetableData });
 
     } catch (error) {
@@ -720,8 +743,77 @@ const getRoomData = async (req, res) => {
         room.tubelights = roomsData[i].tubelights;
         room.projectors = roomsData[i].projectors;
 
-        
+        const currentDate = new Date();
+        var day = currentDate.getDay();
+        // day=1;
         room.availability = "Available";
+
+        if(day == 0){
+            room.availability = "Available";
+        }
+        else{
+            const spreadSheetTimeTable = await SpreadSheetTimeTable.find();
+            const timeArray = [];
+            for(let i=0; i<spreadSheetTimeTable[0].weeklyTimetable.Monday[0].length; i++){
+                timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
+            }
+
+            const currentTime = moment();
+            // const currentTime = moment('08:45 AM', 'hh:mm A');
+
+
+            let timeSlotIndex = -1;
+            for (let i = 0; i < timeArray.length; i++) {
+                const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+                // Use moment to check if the selected time is within the range
+                if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                    timeSlotIndex = i;
+                    break;
+                }
+            }
+
+
+            if(timeSlotIndex==-1){
+                room.availability = "Available";
+            }
+            else{
+                for(let i=0; i<spreadSheetTimeTable.length; i++){
+                    let timetableData;
+                    let flag=-1;
+                    if(day==1){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Monday;
+                    }
+                    else if(day==2){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Tuesday;
+                    }
+                    else if(day==3){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Wednesday;
+                    }
+                    else if(day==4){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Thursday;
+                    }
+                    else if(day==5){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Friday;
+                    }
+                    else if(day==6){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Saturday;
+                    }
+
+                    for(let i=0; i<timetableData.length; i++){
+                        if(room.location==timetableData[i][timeSlotIndex].location){
+                            flag=1;
+                            room.availability="Occupied";
+                            break;
+                        }
+                    }
+                    if(flag==1){
+                        break;
+                    }
+                }
+            }
+        }
 
         rooms.push(room);
     }
@@ -820,11 +912,12 @@ const getStudentLocation = async (req, res) => {
 const getFacultyLocation = async (req, res) => {
     try {
         const { facultyName } = req.body;
+        var time="";
         // console.log(facultyName);
         const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName });
         // console.log(spreadSheetFacultyTimeTable);
         if (!spreadSheetFacultyTimeTable) {
-            return res.status(200).json({ location: "Not available" });
+            return res.status(200).json({ location: "Not available", time });
         }
 
         const timeArray = [];
@@ -835,10 +928,10 @@ const getFacultyLocation = async (req, res) => {
         const currentDate = new Date();
         var day = currentDate.getDay();
 
-        // day=2
+        // day=1
 
         if(day == 0){
-            return res.status(200).json({ location: "Not available" });
+            return res.status(200).json({ location: "Not available", time });
         }
 
         var data = [];
@@ -862,7 +955,7 @@ const getFacultyLocation = async (req, res) => {
         }
 
         const currentTime = moment();
-        // const currentTime = moment('11:40 AM', 'hh:mm A');
+        // const currentTime = moment('12:40 PM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -877,19 +970,28 @@ const getFacultyLocation = async (req, res) => {
         }
 
         if(timeSlotIndex==-1){
-            return res.status(200).json({ location: "Not available" });
+            return res.status(200).json({ location: "Not available", time });
         }
 
         var location = "";
         for(let i=0; i<data.length; i++){
             location = data[i][timeSlotIndex].location;
+            if(data[i][timeSlotIndex].type=="Lab"){
+                var time1=timeArray[timeSlotIndex];
+                var time2=timeArray[timeSlotIndex+1];
+                let startTime = time1.split(" to ")[0];
+                let endTime = time2.split(" to ")[1];
+                time = startTime + " to " + endTime;
+            }else{
+                time=timeArray[timeSlotIndex];
+            }
         }
 
         if(location=="" || location=="-"){
             location = "Not available";
         }
 
-        res.status(200).json({location});
+        res.status(200).json({location, time});
     } catch (error) {
         console.log(error);
     }
