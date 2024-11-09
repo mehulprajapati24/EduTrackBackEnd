@@ -26,9 +26,11 @@ app.get("/", (req, res)=>{
 
 const AdminRoutes = require('./src/routes/adminRoutes')
 const StudentRoutes = require('./src/routes/studentRoutes')
+const FacultyRoutes = require('./src/routes/facultyRoutes')
 
 app.use('/admin', AdminRoutes);
 app.use('/', StudentRoutes);
+app.use("/faculty", FacultyRoutes);
 
 app.listen(port, ()=>{
     console.log(`EduTrack listening on port ${port}`);

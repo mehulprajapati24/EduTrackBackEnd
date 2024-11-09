@@ -20,8 +20,11 @@ router.get("/get-daywise-timetable", adminControllers.getDayWiseTimetable);
 router.get("/get-timetable-based-on-time", adminControllers.getTimetableBasedOnTime);
 router.get("/get-students-data", adminControllers.getStudentsData);
 router.post("/get-student-location", adminControllers.getStudentLocation);
+router.get("/get-students-location", adminControllers.getStudentsLocation);
 router.get("/get-faculty-data", adminControllers.getFacultyData);
 router.post("/get-faculty-location", adminControllers.getFacultyLocation);
 router.get("/get-room-data", adminControllers.getRoomData);
+router.get("/viewShifts", adminControllers.viewShifts);
+router.post("/get-student-location-based-on-prompt", adminControllers.getStudentLocationBasedOnPrompt);
 
 module.exports = router;

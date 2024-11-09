@@ -19,6 +19,9 @@ const FacultySchema = new Schema({
     },
     password: {
         type: String,
+    },
+    profileLink: {
+        type: String
     }
 });
 

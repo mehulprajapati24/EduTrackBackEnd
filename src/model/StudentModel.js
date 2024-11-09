@@ -37,6 +37,9 @@ const StudentSchema = new Schema({
     },
     password: {
         type: String,
+    },
+    profileLink: {
+        type: String
     }
 });
 

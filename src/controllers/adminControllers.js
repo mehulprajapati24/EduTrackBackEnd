@@ -26,6 +26,7 @@ const serviceAccountAuth = new JWT({
 });
 
 const { google } = require("googleapis");
+const Shift = require("../model/ShiftModel")
 
 // Initialize auth - see https://googleapis.dev/nodejs/googleapis/latest/auth/index.html
 const jwtClient = new google.auth.JWT({
@@ -588,6 +589,8 @@ const getTimetableBasedOnSheetName = async (req, res) => {
                 timetable[j][i] = timetable1[i][j];
             }
         }
+
+        // console.log(timetable);
   
         res.json({ timetable });
       
@@ -716,6 +719,7 @@ const getFacultyData = async (req, res) => {
     return res.status(200).json( {faculties} );
 }
 
+
 const getRoomData = async (req, res) => {
     var roomsData = await Resource.find();
     var rooms = [];
@@ -821,8 +825,186 @@ const getRoomData = async (req, res) => {
     return res.status(200).json( {rooms} );
 }
 
+const getStudentLocationBasedOnPrompt = async (req, res) => {
+    try {
+        const enrollmentPrompt = req.body.enrollment;
+        const namePrompt = req.body.name;
+        const timePrompt = req.body.time;
+        const dayPrompt = req.body.day;
+
+        // console.log(enrollmentPrompt+ " " + namePrompt + " " + timePrompt + " " + dayPrompt);
+        if(enrollmentPrompt){
+            var student = await Student.findOne({ enrollment:enrollmentPrompt });
+        }
+        else if(namePrompt){
+            var student = await Student.findOne({ name: namePrompt });
+        }
+        else{
+            return res.status(201).json({location: "student not found"});
+        }
+
+        if(!student){
+            return res.status(201).json({location: "student not found"});
+        }
+
+        if(!dayPrompt){
+            return res.status(201).json({location: "day not found"});
+        }
+
+        if(!timePrompt){
+            return res.status(201).json({location: "time not found"});
+        }
+
+
+        var time="";
+        const className = student.class;
+        const batch = student.batch;
+        
+        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className });
+        const timeArray = [];
+        for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
+            timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
+        }
+        // console.log(timeArray);
+        const currentDate = new Date();
+        var day = currentDate.getDay();
+        // day=3;
+
+        if(dayPrompt=="sunday" || dayPrompt == "Sunday"){
+            day=0;
+        }
+        else if(dayPrompt=="monday" || dayPrompt == "Monday"){
+            day=1;
+        }
+        else if(dayPrompt=="tuesday" || dayPrompt == "Tuesday"){
+            day=2;
+        }
+        else if(dayPrompt=="wednesday" || dayPrompt == "Wednesday"){
+            day=3;
+        }
+        else if(dayPrompt=="thursday" || dayPrompt == "Thursday"){
+            day=4;
+        }
+        else if(dayPrompt=="friday" || dayPrompt == "Friday"){
+            day=5;
+        }
+        else if(dayPrompt=="saturday" || dayPrompt == "Saturday"){
+            day=6;
+        }
+
+        if(day == 0){
+            return res.status(200).json({ location: "Not available", time });
+        }
+
+        var data = [];
+        if(day ==1 ){
+            data = spreadSheetTimeTable.weeklyTimetable.Monday;
+        }
+        else if(day == 2){
+            data = spreadSheetTimeTable.weeklyTimetable.Tuesday;
+        }
+        else if(day == 3){
+            data = spreadSheetTimeTable.weeklyTimetable.Wednesday;
+        }
+        else if(day == 4){
+            data = spreadSheetTimeTable.weeklyTimetable.Thursday;
+        }
+        else if(day == 5){
+            data = spreadSheetTimeTable.weeklyTimetable.Friday;
+        }
+        else if(day == 6){
+            data = spreadSheetTimeTable.weeklyTimetable.Saturday;
+        }
+
+        // console.log(data);
+        // const currentTime = moment();
+        const currentTime = moment(timePrompt, 'hh:mm A');
+
+        let timeSlotIndex = -1;
+        for (let i = 0; i < timeArray.length; i++) {
+            const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+            // Use moment to check if the selected time is within the range
+            if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                timeSlotIndex = i;
+                break;
+            }
+        }
+
+        // console.log(data);
+
+
+        if(timeSlotIndex==-1){
+            return res.status(200).json({ location: "Not available", time });
+        }
+
+        var location = "";
+        for(let i=0; i<data.length; i++){
+            if(data[i][timeSlotIndex].classbatch.includes(batch)){
+                location = data[i][timeSlotIndex].location;
+                if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex];
+                    var time2=timeArray[timeSlotIndex+1];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else if(data[i][timeSlotIndex].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex-1];
+                    var time2=timeArray[timeSlotIndex];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else{
+                    time=timeArray[timeSlotIndex];
+                }
+                break;
+            }
+        }
+
+        if(location==""){
+            for(let i=0; i<data.length; i++){
+                if(data[i][timeSlotIndex].classbatch.includes(className)){
+                    location = data[i][timeSlotIndex].location;
+                    if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex];
+                        var time2=timeArray[timeSlotIndex+1];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else if(data[i][timeSlotIndex].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex-1];
+                        var time2=timeArray[timeSlotIndex];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else{
+                        time=timeArray[timeSlotIndex];
+                    }
+                    break;
+                }
+            }
+        }
+
+        if(location=="" || location=="-"){
+            location = "Not available";
+        }
+
+        return res.status(200).json({ location, time });
+    
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 const getStudentLocation = async (req, res) => {
     try {
+        var time="";
         const { className, batch } = req.body;
         const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className });
         const timeArray = [];
@@ -835,7 +1017,7 @@ const getStudentLocation = async (req, res) => {
         // day=3;
 
         if(day == 0){
-            return res.status(200).json({ location: "Not available" });
+            return res.status(200).json({ location: "Not available", time });
         }
 
         var data = [];
@@ -860,7 +1042,7 @@ const getStudentLocation = async (req, res) => {
 
         // console.log(data);
         const currentTime = moment();
-        // const currentTime = moment('08:45 AM', 'hh:mm A');
+        // const currentTime = moment('09:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -878,13 +1060,30 @@ const getStudentLocation = async (req, res) => {
 
 
         if(timeSlotIndex==-1){
-            return res.status(200).json({ location: "Not available" });
+            return res.status(200).json({ location: "Not available", time });
         }
 
         var location = "";
         for(let i=0; i<data.length; i++){
             if(data[i][timeSlotIndex].classbatch.includes(batch)){
                 location = data[i][timeSlotIndex].location;
+                if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex];
+                    var time2=timeArray[timeSlotIndex+1];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else if(data[i][timeSlotIndex].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex-1];
+                    var time2=timeArray[timeSlotIndex];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else{
+                    time=timeArray[timeSlotIndex];
+                }
                 break;
             }
         }
@@ -893,6 +1092,23 @@ const getStudentLocation = async (req, res) => {
             for(let i=0; i<data.length; i++){
                 if(data[i][timeSlotIndex].classbatch.includes(className)){
                     location = data[i][timeSlotIndex].location;
+                    if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex];
+                        var time2=timeArray[timeSlotIndex+1];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else if(data[i][timeSlotIndex].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex-1];
+                        var time2=timeArray[timeSlotIndex];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else{
+                        time=timeArray[timeSlotIndex];
+                    }
                     break;
                 }
             }
@@ -902,12 +1118,150 @@ const getStudentLocation = async (req, res) => {
             location = "Not available";
         }
 
-        return res.status(200).json({ location });
+        return res.status(200).json({ location, time });
     } catch (error) {
         console.log(error);
         
     }
 }
+
+const getStudentsLocation = async (req, res) => {
+
+    var studentInfoWithLocation = [];
+
+    const allStudents = await Student.find();
+
+    for(var m=0; m<allStudents.length; m++){
+        try {
+            var time="";
+            const className = allStudents[m].class;
+            const batch = allStudents[m].batch;
+            const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className });
+            const timeArray = [];
+            for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
+                timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
+            }
+            // console.log(timeArray);
+            const currentDate = new Date();
+            var day = currentDate.getDay();
+            // day=3;
+    
+            if(day == 0){
+                studentInfoWithLocation.push({enrollment: allStudents[m].enrollment, name: allStudents[m].name, location: "Not available", time: time});
+                continue;
+            }
+    
+            var data = [];
+            if(day ==1 ){
+                data = spreadSheetTimeTable.weeklyTimetable.Monday;
+            }
+            else if(day == 2){
+                data = spreadSheetTimeTable.weeklyTimetable.Tuesday;
+            }
+            else if(day == 3){
+                data = spreadSheetTimeTable.weeklyTimetable.Wednesday;
+            }
+            else if(day == 4){
+                data = spreadSheetTimeTable.weeklyTimetable.Thursday;
+            }
+            else if(day == 5){
+                data = spreadSheetTimeTable.weeklyTimetable.Friday;
+            }
+            else if(day == 6){
+                data = spreadSheetTimeTable.weeklyTimetable.Saturday;
+            }
+    
+            // console.log(data);
+            const currentTime = moment();
+            // const currentTime = moment('09:39 AM', 'hh:mm A');
+    
+            let timeSlotIndex = -1;
+            for (let i = 0; i < timeArray.length; i++) {
+                const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+    
+                // Use moment to check if the selected time is within the range
+                if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                    timeSlotIndex = i;
+                    break;
+                }
+            }
+    
+            // console.log(data);
+    
+    
+            if(timeSlotIndex==-1){
+                studentInfoWithLocation.push({enrollment: allStudents[m].enrollment, name: allStudents[m].name, location: "Not available", time: time});
+                continue;
+            }
+    
+            var location = "";
+            for(let i=0; i<data.length; i++){
+                if(data[i][timeSlotIndex].classbatch.includes(batch)){
+                    location = data[i][timeSlotIndex].location;
+                    if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex];
+                        var time2=timeArray[timeSlotIndex+1];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else if(data[i][timeSlotIndex].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex-1];
+                        var time2=timeArray[timeSlotIndex];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else{
+                        time=timeArray[timeSlotIndex];
+                    }
+                    break;
+                }
+            }
+    
+            if(location==""){
+                for(let i=0; i<data.length; i++){
+                    if(data[i][timeSlotIndex].classbatch.includes(className)){
+                        location = data[i][timeSlotIndex].location;
+                        if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                            var time1=timeArray[timeSlotIndex];
+                            var time2=timeArray[timeSlotIndex+1];
+                            let startTime = time1.split(" to ")[0];
+                            let endTime = time2.split(" to ")[1];
+                            time = startTime + " to " + endTime;
+                        }
+                        else if(data[i][timeSlotIndex].type=="Lab"){
+                            var time1=timeArray[timeSlotIndex-1];
+                            var time2=timeArray[timeSlotIndex];
+                            let startTime = time1.split(" to ")[0];
+                            let endTime = time2.split(" to ")[1];
+                            time = startTime + " to " + endTime;
+                        }
+                        else{
+                            time=timeArray[timeSlotIndex];
+                        }
+                        break;
+                    }
+                }
+            }
+    
+            if(location=="" || location=="-"){
+                location = "Not available";
+            }
+    
+            studentInfoWithLocation.push({enrollment: allStudents[m].enrollment, name: allStudents[m].name, location: location, time: time});
+            continue;
+        } catch (error) {
+            console.log(error);
+            
+        }
+
+    }
+    // console.log(studentInfoWithLocation);
+    res.status(201).json({studentWithLocation: studentInfoWithLocation});
+}
+
 
 const getFacultyLocation = async (req, res) => {
     try {
@@ -928,7 +1282,7 @@ const getFacultyLocation = async (req, res) => {
         const currentDate = new Date();
         var day = currentDate.getDay();
 
-        // day=1
+        // day=3
 
         if(day == 0){
             return res.status(200).json({ location: "Not available", time });
@@ -955,7 +1309,7 @@ const getFacultyLocation = async (req, res) => {
         }
 
         const currentTime = moment();
-        // const currentTime = moment('12:40 PM', 'hh:mm A');
+        // const currentTime = moment('09:20 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -976,13 +1330,20 @@ const getFacultyLocation = async (req, res) => {
         var location = "";
         for(let i=0; i<data.length; i++){
             location = data[i][timeSlotIndex].location;
-            if(data[i][timeSlotIndex].type=="Lab"){
+            if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1]?.type=="Lab"){
                 var time1=timeArray[timeSlotIndex];
                 var time2=timeArray[timeSlotIndex+1];
                 let startTime = time1.split(" to ")[0];
                 let endTime = time2.split(" to ")[1];
                 time = startTime + " to " + endTime;
-            }else{
+            }else if(data[i][timeSlotIndex].type=="Lab"){
+                var time1=timeArray[timeSlotIndex-1];
+                var time2=timeArray[timeSlotIndex];
+                let startTime = time1.split(" to ")[0];
+                let endTime = time2.split(" to ")[1];
+                time = startTime + " to " + endTime;
+            }
+            else{
                 time=timeArray[timeSlotIndex];
             }
         }
@@ -994,6 +1355,16 @@ const getFacultyLocation = async (req, res) => {
         res.status(200).json({location, time});
     } catch (error) {
         console.log(error);
+    }
+}
+
+const viewShifts = async (req, res) => {
+    try {
+        const shift = await Shift.find({}).populate('facultyId').sort({ date: -1 });;
+        res.status(201).json({shift});
+    } catch (error) {
+        console.log(error);
+        
     }
 }
 
@@ -1013,7 +1384,10 @@ module.exports = {
     getTimetableBasedOnTime,
     getStudentsData,
     getStudentLocation,
+    getStudentsLocation,
     getFacultyData,
     getFacultyLocation,
-    getRoomData
+    getRoomData,
+    viewShifts,
+    getStudentLocationBasedOnPrompt
 }
