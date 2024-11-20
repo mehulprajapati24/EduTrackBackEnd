@@ -33,7 +33,13 @@ const SpreadSheetFacultyTimeTableSchema = new Schema({
     Thursday: [[sessionSchema]],
     Friday: [[sessionSchema]],
     Saturday: [[sessionSchema]],
-  }
+  },
+  academicYear: {
+    type: String
+},
+semester: {
+    type: String
+}
 });
 
 const SpreadSheetFacultyTimeTable = mongoose.model('SpreadSheetFacultyTimeTable', SpreadSheetFacultyTimeTableSchema);

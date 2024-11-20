@@ -22,6 +22,12 @@ const FacultySchema = new Schema({
     },
     profileLink: {
         type: String
+    },
+    academicYear: {
+        type: String
+    },
+    semester: {
+        type: String
     }
 });
 

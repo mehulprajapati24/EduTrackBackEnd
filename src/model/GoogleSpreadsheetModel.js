@@ -5,6 +5,14 @@ const GoogleSpreadsheetSchema = new Schema({
     sheetId: {
         type: String,
         required: true
+    },
+    academicYear: {
+        type: String,
+        required: true
+    },
+    semester: {
+        type: String,
+        required: true
     }
 });
 

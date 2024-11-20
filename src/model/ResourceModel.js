@@ -25,6 +25,12 @@ const ResourceSchema = new Schema({
     },
     projectors: {
         type: String,
+    },
+    academicYear: {
+        type: String
+    },
+    semester: {
+        type: String
     }
 });
 

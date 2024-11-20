@@ -10,6 +10,12 @@ const ShiftSchema = new Schema({
       startTime: { type: String},
       endTime: { type: String },
       date: { type: String },
+      academicYear: {
+        type: String
+    },
+    semester: {
+        type: String
+    }
 });
 
 const Shift = mongoose.model('Shift', ShiftSchema);

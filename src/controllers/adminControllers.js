@@ -3,6 +3,7 @@ const ClassBatch = require("../model/AdminClassBatchModel")
 const Timetable = require("../model/AdminTimeTableModel")
 const Session = require("../model/SessionModel")
 const Admin = require("../model/AdminModel")
+const AcademicYear = require("../model/AcademicYearModel")
 const SpreadSheetTimeTable = require("../model/SpreadSheetTimetableModel")
 const SpreadSheetFacultyTimeTable = require("../model/SpreadSheetFacultyTimetableModel")
 const Student = require("../model/StudentModel")
@@ -12,6 +13,11 @@ const GoogleSpreadsheetModel = require("../model/GoogleSpreadsheetModel")
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 const moment = require('moment');
+const crypto = require('crypto');
+const nodemailer = require("nodemailer");
+const Otp = require("../model/OtpModel")
+const Principal = require("../model/PrincipalModel")
+
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
@@ -28,6 +34,7 @@ const serviceAccountAuth = new JWT({
 const { google } = require("googleapis");
 const Shift = require("../model/ShiftModel")
 
+
 // Initialize auth - see https://googleapis.dev/nodejs/googleapis/latest/auth/index.html
 const jwtClient = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -39,6 +46,14 @@ const jwtClient = new google.auth.JWT({
   const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
 require('dotenv').config();
+
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
 const createSession = async (req, res) => {
     try {
@@ -129,6 +144,204 @@ const createTimeTable = async (req, res) => {
     }
 }
 
+const addAcademicYear = async (req, res) => {
+    const { academicYear, semester } = req.body;
+
+try {
+  const existingAcademicYear = await AcademicYear.findOne({ academicYear, semester });
+
+  if (existingAcademicYear) {
+    return res.status(200).json({ success: false, message: 'Academic year and semester already exist.' });
+  }
+
+  // If not found, proceed with creating a new document
+  const newAcademicYear = new AcademicYear({
+    academicYear,
+    semester,
+  });
+  
+  await newAcademicYear.save();
+  res.status(201).json({ success: true, message: 'Academic year and semester added successfully!' });
+} catch (error) {
+  res.status(500).json({ error: 'An error occurred while adding the academic year and semester.' });
+}
+
+}
+
+const getYears = async (req, res) => {
+    try {
+        const years = await AcademicYear.find({});
+        const arrayOfYears = [];
+        for(var i=0; i<years.length; i++){
+            if (!arrayOfYears.includes(years[i].academicYear)) {
+                arrayOfYears.push(years[i].academicYear);
+            }
+        }
+        res.status(200).json({ years: arrayOfYears });
+    } catch (error) {
+        res.status(500).json({ error: 'An error occurred while adding the academic year and semester.' });
+    }
+}
+
+const selectedYear = async (req, res) => {
+    const { academicYear, semester } = req.body;
+  
+    try {
+      // Step 1: Set 'selected' to false for all documents
+      await AcademicYear.updateMany({}, { selected: false });
+  
+      // Step 2: Find and update the specific document with matching academicYear and semester, set selected to true
+      const updatedAcademicYear = await AcademicYear.findOneAndUpdate(
+        { academicYear, semester },
+        { selected: true },
+        { new: true } // Option to return the updated document
+      );
+  
+      // Check if the specific document was found and updated
+      if (!updatedAcademicYear) {
+        return res.status(200).json({
+          success: false,
+          message: 'Academic year and semester not found',
+        });
+      }
+  
+      // If successful, return a success message
+      res.status(200).json({
+        success: true,
+        message: 'Academic year and semester selected successfully',
+      });
+    } catch (error) {
+      // Return an error response if there was an exception
+      res.status(500).json({
+        success: false,
+        message: 'An error occurred while updating the academic year and semester',
+        error: error.message,
+      });
+    }
+  };  
+  
+
+
+  const addPrincipal = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const principal = await Principal.findOne({ email: email });
+        if (principal) {
+            return res.status(200).json({
+                message: "Principal already exists",
+                success: false});
+            }
+
+        const randomPassword = crypto.randomBytes(3).toString('base64').slice(0, 6);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Password for principal to login into Edu-Track-UVPCE',
+            text: `Your Password is ${randomPassword}. Please log in by email: ${email}`,
+        };
+    
+        transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+                console.error('Error sending email:', err);
+                return res.json({ error: true, message: 'Error sending OTP' });
+            }
+        });
+
+        const newPassword = await bcrypt.hash(randomPassword, 10);
+
+        const newPrincipal = new Principal({email, password: newPassword});
+        await newPrincipal.save();
+        return res.status(200).json({success: true, message: "Principal added successfully"});
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
+const addAdmin = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const admin = await Admin.findOne({ email: email });
+        if (admin) {
+            return res.status(200).json({
+                message: "Admin already exists",
+                success: false});
+            }
+
+        const randomPassword = crypto.randomBytes(3).toString('base64').slice(0, 6);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Password for admin to login into Edu-Track-UVPCE',
+            text: `Your Password is ${randomPassword}. Please log in by email: ${email}`,
+        };
+    
+        transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+                console.error('Error sending email:', err);
+                return res.json({ error: true, message: 'Error sending OTP' });
+            }
+        });
+
+        const newPassword = await bcrypt.hash(randomPassword, 10);
+
+        const newAdmin = new Admin({email, password: newPassword});
+        await newAdmin.save();
+        return res.status(200).json({success: true, message: "Admin added successfully"});
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
+
+
+const otp = async (req, res) => {
+    const { email } = req.body;
+    const admin = await Admin.findOne({ 
+        email
+    });
+
+    if (!admin) {
+        return res.json({ error: true, message: "Email not found" });
+    }
+    
+    const otp = (crypto.randomInt(100000, 1000000)).toString();
+    const otpExpires = Date.now() + 60000; // OTP expires in 1 minute
+
+    // Check for existing OTP data
+    let otp_data = await Otp.findOne({ email: email });
+
+    if (otp_data) {
+        // If document exists, update it
+        otp_data.otp = otp;
+        otp_data.otpExpires = otpExpires;
+    } else {
+        // If document does not exist, create a new one
+        otp_data = new Otp({
+            email: email,
+            otp: otp,
+            otpExpires: otpExpires
+        });
+    }
+
+    // Save the OTP data (either updated or newly created)
+    await otp_data.save();
+
+    // Send OTP email
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'OTP for verification from Edu-Track-UVPCE',
+        text: `Your OTP is ${otp}`,
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+            console.error('Error sending email:', err);
+            return res.json({ error: true, message: 'Error sending OTP' });
+        }
+        res.status(201).json({ error: false, message: "OTP sent" });
+    });
+};
 
 const validateAdmin = async (req, res) => {
     const { email, password } = req.body;
@@ -234,19 +447,23 @@ const getBatches = async (req, res) => {
 };
 
 const addSheetId = async (req, res) => {
-    const { sheetId } = req.body;
+    const { sheetId, academicYear, semester } = req.body;
 
     try {
         // Delete all existing sheetIds
-        await GoogleSpreadsheetModel.deleteMany({});
-        await SpreadSheetTimeTable.deleteMany({});
-        await SpreadSheetFacultyTimeTable.deleteMany({});
-        await Student.deleteMany({});
-        await Faculty.deleteMany({});
-        await Resource.deleteMany({});
+        // await GoogleSpreadsheetModel.deleteMany({});
+        // await SpreadSheetTimeTable.deleteMany({});
+        // await SpreadSheetFacultyTimeTable.deleteMany({});
+        // await Student.deleteMany({});
+        // await Faculty.deleteMany({});
+        // await Resource.deleteMany({});
+
+        await GoogleSpreadsheetModel.deleteMany({ academicYear, semester });
+
+        
     
         // Add the new sheetId
-        const newSheet = new GoogleSpreadsheetModel({ sheetId });
+        const newSheet = new GoogleSpreadsheetModel({ sheetId, academicYear, semester });
         await newSheet.save();
 
         // const doc = new GoogleSpreadsheet(sheetId, serviceAccountAuth);
@@ -274,9 +491,10 @@ const addSheetId = async (req, res) => {
 
         // console.log("Total class sheets: " + classes.length);
         // console.log("Class sheet names: ", classes);
+        
 
         for (const sheet of classes) {
-            await createTimeTableBasedOnSheet(sheet, "class");
+            createTimeTableBasedOnSheet(sheet, "class");
         }
 
 
@@ -305,7 +523,7 @@ const addSheetId = async (req, res) => {
         // console.log("Faculty sheet names: ", faculties);
 
         for (const sheet of faculties) {
-            await createTimeTableBasedOnSheet(sheet, "faculty");
+            createTimeTableBasedOnSheet(sheet, "faculty");
         }
 
 
@@ -438,11 +656,11 @@ const addSheetId = async (req, res) => {
     
     
             if(choice=="class"){
-                const classTimetable = new SpreadSheetTimeTable({ class: sheet, weeklyTimetable });
-                await classTimetable.save();
+                const classTimetable = new SpreadSheetTimeTable({ class: sheet, weeklyTimetable, academicYear, semester });
+                classTimetable.save();
             }else if(choice == "faculty"){
-                const facultyTimetable = new SpreadSheetFacultyTimeTable({ facultyName: sheet, weeklyTimetable });
-                await facultyTimetable.save();
+                const facultyTimetable = new SpreadSheetFacultyTimeTable({ facultyName: sheet, weeklyTimetable, academicYear, semester });
+                facultyTimetable.save();
             }
         }
 
@@ -459,26 +677,58 @@ const addSheetId = async (req, res) => {
         for (let k=1; k<rowsData.length; k++) {
             if(rowsData[k][5] !== undefined){
                 if(rowsData[k][5] !== ''){
-                    const studentData = new Student({ enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], hostellercommuter: rowsData[k][4], semester: rowsData[k][5], phone: rowsData[k][6], parentsphone: rowsData[k][7], gnuemail: rowsData[k][8], email: rowsData[k][9], batch: rowsData[k][10], class: rowsData[k][11] , password: hashedPassword});
-                    await studentData.save();
+                    const existingStudent = await Student.findOne({enrollment: rowsData[k][1]});
+                    if(existingStudent){
+                        const studentData = new Student({ enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], hostellercommuter: rowsData[k][4], semester: rowsData[k][5], phone: rowsData[k][6], parentsphone: rowsData[k][7], gnuemail: rowsData[k][8], email: rowsData[k][9], batch: rowsData[k][10], class: rowsData[k][11] , password: existingStudent.password, academicYear, sem: semester, ...(existingStudent.profileLink && { profileLink: existingStudent.profileLink })});
+                        studentData.save();
+                    }
+                    else{
+                    const studentData = new Student({ enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], hostellercommuter: rowsData[k][4], semester: rowsData[k][5], phone: rowsData[k][6], parentsphone: rowsData[k][7], gnuemail: rowsData[k][8], email: rowsData[k][9], batch: rowsData[k][10], class: rowsData[k][11] , password: hashedPassword, academicYear, sem: semester});
+                    studentData.save();
+                }
                 }
                 else{
                     if(rowsData[k][8] !== undefined){
-                        const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: rowsData[k][8], password: hashedPassword});
-                        await facultyData.save();
+                        const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
+                        if(existingFaculty){
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: rowsData[k][8], password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                            facultyData.save();
+                        }else{
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: rowsData[k][8], password: hashedPassword, academicYear, semester});
+                            facultyData.save();
+                        }
                     }
                     else if(rowsData[k][6] !== undefined){
-                        const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: '', password: hashedPassword});
-                        await facultyData.save();
+                        const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
+                        if(existingFaculty){
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                            facultyData.save();
+                        }else{
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: '', password: hashedPassword, academicYear, semester});
+                            facultyData.save();
+                        }
                     }
                     else{
-                        const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword});
-                        await facultyData.save();
+                        const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
+                        if(existingFaculty){
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                            facultyData.save();
+                        }else{
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword, academicYear, semester});
+                            facultyData.save();
+                        }
                     }
                 }
             }else{
-                const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword});
-                await facultyData.save();
+                const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
+                if(existingFaculty){
+                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                    facultyData.save();
+                }
+                else{
+                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword, academicYear, semester});
+                    facultyData.save();
+                }
             }
         }
 
@@ -493,8 +743,8 @@ const addSheetId = async (req, res) => {
         // console.log(rowsData2);
 
         for(let i=1; i<rowsData2.length; i++){
-            const resourceData = new Resource({location: rowsData2[i][1], acs: rowsData2[i][2], chairs: rowsData2[i][3], benches: rowsData2[i][4], computers: rowsData2[i][5], fans: rowsData2[i][6], tubelights: rowsData2[i][7], projectors: rowsData2[i][8]});
-            await resourceData.save();
+            const resourceData = new Resource({location: rowsData2[i][1], acs: rowsData2[i][2], chairs: rowsData2[i][3], benches: rowsData2[i][4], computers: rowsData2[i][5], fans: rowsData2[i][6], tubelights: rowsData2[i][7], projectors: rowsData2[i][8], academicYear, semester});
+            resourceData.save();
         }
 
 
@@ -507,12 +757,86 @@ const addSheetId = async (req, res) => {
       }
 }
 
+const postGetSheets = async (req, res) => {
+    const {academicYear, semester} = req.body;
+    try {
+      // Fetch data from both models
+  
+      const classTimetables = await SpreadSheetTimeTable.find({academicYear, semester});
+      const facultyTimetables = await SpreadSheetFacultyTimeTable.find({academicYear, semester});
+  
+      // Console log the data
+      // console.log('Class Timetables:', classTimetables);
+      // console.log('Faculty Timetables:', facultyTimetables);
+  
+      var sheets=[];
+  
+      for(let i of classTimetables){
+          sheets.push(i.class);
+      }
+  
+      for(let i of facultyTimetables){
+          sheets.push(i.facultyName);
+      }
+  
+      // Send a response to indicate successful fetch
+      res.status(200).json({
+        success: true,
+        message: 'Data fetched successfully',
+        sheets
+      });
+    } catch (error) {
+      console.error('Error fetching timetables:', error);
+  
+      // Send an error response if something goes wrong
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching timetables',
+        error: error.message,
+      });
+    }
+  };
+
+
+  const getClassSheets = async (req, res) => {
+    const {academicYear, semester} = req.body;
+    try {
+      // Fetch data from both models
+  
+      const classTimetables = await SpreadSheetTimeTable.find({academicYear, semester});
+  
+  
+      var sheets=[];
+  
+      for(let i of classTimetables){
+          sheets.push(i.class);
+      }
+  
+      // Send a response to indicate successful fetch
+      res.status(200).json({
+        success: true,
+        message: 'Data fetched successfully',
+        sheets
+      });
+    } catch (error) {
+      console.error('Error fetching timetables:', error);
+  
+      // Send an error response if something goes wrong
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching timetables',
+        error: error.message,
+      });
+    }
+  };
 
 const getSheets = async (req, res) => {
   try {
     // Fetch data from both models
-    const classTimetables = await SpreadSheetTimeTable.find();
-    const facultyTimetables = await SpreadSheetFacultyTimeTable.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    const classTimetables = await SpreadSheetTimeTable.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
+    const facultyTimetables = await SpreadSheetFacultyTimeTable.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
 
     // Console log the data
     // console.log('Class Timetables:', classTimetables);
@@ -546,6 +870,62 @@ const getSheets = async (req, res) => {
   }
 };
 
+const postGetTimetableBasedOnSheetName = async (req, res) => {
+    try {
+      const { sheetName, academicYear, semester } = req.body;
+  
+    //   console.log('Received sheetName:', sheetName);
+
+
+    
+      let timetable1;
+  
+      // Assuming you have two different models for class and faculty timetables
+      
+      /*
+        timetable = await SpreadSheetTimeTable.findOne({ class: sheetName });
+      
+        if(!timetable){
+            timetable = await SpreadSheetFacultyTimeTable.findOne({ facultyName: sheetName });
+        }
+      
+        */
+
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear, semester});
+        // console.log(sheetId[0].sheetId);
+        let spreadsheetId = sheetId[0].sheetId;
+
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: sheetName, // Adjust according to your sheet name
+          });
+
+        timetable1 = response.data.values;
+        timetable1[0][0] = timetable1[0][0].split("/").reverse().join("/");
+
+        let timetable = [];
+        for(let i=0; i<timetable1.length; i++){
+            for(let j=0; j<timetable1[i].length; j++){
+                if (!timetable[j]) {
+                    // Initialize timetable[j] as an empty array if it doesn't exist
+                    timetable[j] = [];
+                }
+                timetable[j][i] = timetable1[i][j];
+            }
+        }
+
+        // console.log(timetable);
+  
+        res.json({ timetable });
+      
+    } catch (error) {
+      console.error('Error fetching timetable:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  };
+
 const getTimetableBasedOnSheetName = async (req, res) => {
     try {
       const { sheetName } = req.query;
@@ -566,7 +946,10 @@ const getTimetableBasedOnSheetName = async (req, res) => {
       
         */
 
-        let sheetId = await GoogleSpreadsheetModel.find();
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
         // console.log(sheetId[0].sheetId);
         let spreadsheetId = sheetId[0].sheetId;
 
@@ -601,12 +984,13 @@ const getTimetableBasedOnSheetName = async (req, res) => {
   };
   
 
-  const getDayWiseTimetable = async (req, res) => {
+  const postGetDayWiseTimetable = async (req, res) => {
     try {
-        const { sheetName, day } = req.query;
+        const { sheetName, day, academicYear, semester } = req.body;
 
         let timetable;
-        let sheetId = await GoogleSpreadsheetModel.find();
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear, semester});
         let spreadsheetId = sheetId[0].sheetId;
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
@@ -644,13 +1028,59 @@ const getTimetableBasedOnSheetName = async (req, res) => {
     }
   }
 
-  const getTimetableBasedOnTime = async (req, res) => {
+  const getDayWiseTimetable = async (req, res) => {
     try {
-        const { sheetName, day, time } = req.query; // time is like '22:58'
+        const { sheetName, day } = req.query;
+
+        let timetable;
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
+        let spreadsheetId = sheetId[0].sheetId;
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: sheetName, // Adjust according to your sheet name
+          });
+
+        timetable = response.data.values;
+
+        var dayWiseTimetable = [];
+        dayWiseTimetable = timetable.filter((row)=> row[0]==day);
+        var dayWiseTimetableData1 = [];
+        dayWiseTimetableData1.push(timetable[0]);
+
+        for(let row of dayWiseTimetable){
+            dayWiseTimetableData1.push(row);
+        }
+
+        dayWiseTimetableData1[0][0] = dayWiseTimetableData1[0][0].split("/").reverse().join("/");
+
+        // console.log(dayWiseTimetableData1);
+
+        let dayWiseTimetableData = [];
+        for(let i=0; i<dayWiseTimetableData1.length; i++){
+            for(let j=0; j<dayWiseTimetableData1[i].length; j++){
+                if (!dayWiseTimetableData[j]) {
+                    dayWiseTimetableData[j] = [];
+                }
+                dayWiseTimetableData[j][i] = dayWiseTimetableData1[i][j];
+            }
+        }
+        res.json({ dayWiseTimetableData });
+
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const postGetTimetableBasedOnTime = async (req, res) => {
+    try {
+        const { sheetName, day, time, academicYear, semester } = req.body; // time is like '22:58'
         // console.log(`Received time: ${time}`);
 
         let timetable;
-        let sheetId = await GoogleSpreadsheetModel.find();
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear, semester});
         let spreadsheetId = sheetId[0].sheetId;
 
         // Fetching the timetable from the sheet
@@ -708,20 +1138,217 @@ const getTimetableBasedOnSheetName = async (req, res) => {
     }
 };
 
-const getStudentsData = async (req, res) => {
-    let students = await Student.find();
+  const getTimetableBasedOnTime = async (req, res) => {
+    try {
+        const { sheetName, day, time } = req.query; // time is like '22:58'
+        // console.log(`Received time: ${time}`);
+
+        let timetable;
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
+        let spreadsheetId = sheetId[0].sheetId;
+
+        // Fetching the timetable from the sheet
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: sheetName, // Adjust according to your sheet name
+        });
+
+        timetable = response.data.values;
+
+        // Filter timetable by the selected day
+        let dayWiseTimetable = timetable.filter((row) => row[0] === day);
+        if (dayWiseTimetable.length === 0) {
+            return res.status(404).json({ error: 'No timetable found for the selected day.' });
+        }
+
+        const timeSlots = timetable[0]; // The first row contains the time ranges
+
+        // Find which time slot the selected time falls into
+        let timeSlotIndex = -1;
+
+        // Loop through each time slot (skip the first column header "Day/Time")
+        for (let i = 1; i < timeSlots.length; i++) {
+            const timeRange = timeSlots[i]; // e.g., '08:30 AM to 09:15 AM'
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+            // Use moment to check if the selected time is within the range
+            if (moment(time, 'HH:mm').isBetween(startTime, endTime, null, '[)')) {
+                timeSlotIndex = i;
+                break;
+            }
+        }
+
+        if (timeSlotIndex === -1) {
+            return res.status(404).json({ error: 'No class found at the selected time.' });
+        }
+
+        // Fetch the class information for the selected day and time slot
+        const classInfo = dayWiseTimetable.map(row => row[timeSlotIndex]);
+        // console.log(`Class at ${timeSlots[timeSlotIndex]}: ${classInfo}`);
+        var timeWiseTimetableData = [];
+        timeWiseTimetableData.push(timeSlots[timeSlotIndex]);
+
+        for(let i of classInfo){
+            timeWiseTimetableData.push(i);
+        }
+
+        // console.log(timeWiseTimetableData);
+
+
+        return res.status(200).json({ timeWiseTimetableData });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch timetable based on time' });
+    }
+};
+
+const postGetStudentsData = async (req, res) => {
+
+    const {academicYear, semester} = req.body;
+
+    let students = await Student.find({academicYear, sem: semester});
     // console.log(students);
     return res.status(200).json( {students} );
 }
 
+const getStudentsData = async (req, res) => {
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    let students = await Student.find({academicYear: selectedAcademicYear.academicYear, sem: selectedAcademicYear.semester});
+    // console.log(students);
+    return res.status(200).json( {students} );
+}
+
+const postGetFacultyData = async (req, res) => {
+    const {academicYear, semester} = req.body;
+
+    let faculties = await Faculty.find({academicYear, semester});
+    return res.status(200).json( {faculties} );
+}
+
 const getFacultyData = async (req, res) => {
-    let faculties = await Faculty.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    let faculties = await Faculty.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
     return res.status(200).json( {faculties} );
 }
 
 
+const postGetRoomData = async (req, res) => {
+
+    const {academicYear, semester} = req.body;
+
+    var roomsData = await Resource.find({academicYear, semester});
+    var rooms = [];
+    for(let i=0; i<roomsData.length; i++){
+        let room = {
+            _id:'',
+            location:'',
+            acs:'',
+            chairs:'',
+            benches:'',
+            computers:'',
+            fans:'',
+            tubelights:'',
+            projectors:'',
+            availability:''
+        }
+
+        room._id = roomsData[i]._id;
+        room.location = roomsData[i].location;
+        room.acs = roomsData[i].acs;
+        room.chairs = roomsData[i].chairs;
+        room.benches = roomsData[i].benches;
+        room.computers = roomsData[i].computers;
+        room.fans = roomsData[i].fans;
+        room.tubelights = roomsData[i].tubelights;
+        room.projectors = roomsData[i].projectors;
+
+        const currentDate = new Date();
+        var day = currentDate.getDay();
+        // day=1;
+        room.availability = "Available";
+
+        if(day == 0){
+            room.availability = "Available";
+        }
+        else{
+            const spreadSheetTimeTable = await SpreadSheetTimeTable.find({academicYear, semester});
+            const timeArray = [];
+            for(let i=0; i<spreadSheetTimeTable[0].weeklyTimetable.Monday[0].length; i++){
+                timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
+            }
+
+            const currentTime = moment();
+            // const currentTime = moment('08:45 AM', 'hh:mm A');
+
+
+            let timeSlotIndex = -1;
+            for (let i = 0; i < timeArray.length; i++) {
+                const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+                // Use moment to check if the selected time is within the range
+                if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                    timeSlotIndex = i;
+                    break;
+                }
+            }
+
+
+            if(timeSlotIndex==-1){
+                room.availability = "Available";
+            }
+            else{
+                for(let i=0; i<spreadSheetTimeTable.length; i++){
+                    let timetableData;
+                    let flag=-1;
+                    if(day==1){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Monday;
+                    }
+                    else if(day==2){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Tuesday;
+                    }
+                    else if(day==3){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Wednesday;
+                    }
+                    else if(day==4){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Thursday;
+                    }
+                    else if(day==5){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Friday;
+                    }
+                    else if(day==6){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Saturday;
+                    }
+
+                    for(let i=0; i<timetableData.length; i++){
+                        if(room.location==timetableData[i][timeSlotIndex].location){
+                            flag=1;
+                            room.availability="Occupied";
+                            break;
+                        }
+                    }
+                    if(flag==1){
+                        break;
+                    }
+                }
+            }
+        }
+
+        rooms.push(room);
+    }
+    // console.log(rooms);
+    return res.status(200).json( {rooms} );
+}
+
+
 const getRoomData = async (req, res) => {
-    var roomsData = await Resource.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    var roomsData = await Resource.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
     var rooms = [];
     for(let i=0; i<roomsData.length; i++){
         let room = {
@@ -832,12 +1459,15 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
         const timePrompt = req.body.time;
         const dayPrompt = req.body.day;
 
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
         // console.log(enrollmentPrompt+ " " + namePrompt + " " + timePrompt + " " + dayPrompt);
         if(enrollmentPrompt){
-            var student = await Student.findOne({ enrollment:enrollmentPrompt });
+            var student = await Student.findOne({ enrollment:enrollmentPrompt, academicYear: selectedAcademicYear.academicYear, sem: selectedAcademicYear.semester });
         }
         else if(namePrompt){
-            var student = await Student.findOne({ name: namePrompt });
+            var student = await Student.findOne({ name: namePrompt, academicYear: selectedAcademicYear.academicYear, sem: selectedAcademicYear.semester });
         }
         else{
             return res.status(201).json({location: "student not found"});
@@ -860,7 +1490,7 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
         const className = student.class;
         const batch = student.batch;
         
-        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className });
+        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
         const timeArray = [];
         for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
@@ -1002,11 +1632,137 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
     }
 }
 
+const postGetStudentLocation = async (req, res) => {
+    try {
+        var time="";
+        const { className, batch, academicYear, semester } = req.body;
+        // console.log(className, batch);
+        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className, academicYear, semester });
+        const timeArray = [];
+        for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
+            timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
+        }
+        // console.log(timeArray);
+        const currentDate = new Date();
+        var day = currentDate.getDay();
+        // day=3;
+
+        if(day == 0){
+            return res.status(200).json({ location: "Not available", time });
+        }
+
+        var data = [];
+        if(day ==1 ){
+            data = spreadSheetTimeTable.weeklyTimetable.Monday;
+        }
+        else if(day == 2){
+            data = spreadSheetTimeTable.weeklyTimetable.Tuesday;
+        }
+        else if(day == 3){
+            data = spreadSheetTimeTable.weeklyTimetable.Wednesday;
+        }
+        else if(day == 4){
+            data = spreadSheetTimeTable.weeklyTimetable.Thursday;
+        }
+        else if(day == 5){
+            data = spreadSheetTimeTable.weeklyTimetable.Friday;
+        }
+        else if(day == 6){
+            data = spreadSheetTimeTable.weeklyTimetable.Saturday;
+        }
+
+        // console.log(data);
+        const currentTime = moment();
+        // const currentTime = moment('09:39 AM', 'hh:mm A');
+
+        let timeSlotIndex = -1;
+        for (let i = 0; i < timeArray.length; i++) {
+            const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+            // Use moment to check if the selected time is within the range
+            if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                timeSlotIndex = i;
+                break;
+            }
+        }
+
+        // console.log(data);
+
+
+        if(timeSlotIndex==-1){
+            return res.status(200).json({ location: "Not available", time });
+        }
+
+        var location = "";
+        for(let i=0; i<data.length; i++){
+            if(data[i][timeSlotIndex].classbatch.includes(batch)){
+                location = data[i][timeSlotIndex].location;
+                if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex];
+                    var time2=timeArray[timeSlotIndex+1];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else if(data[i][timeSlotIndex].type=="Lab"){
+                    var time1=timeArray[timeSlotIndex-1];
+                    var time2=timeArray[timeSlotIndex];
+                    let startTime = time1.split(" to ")[0];
+                    let endTime = time2.split(" to ")[1];
+                    time = startTime + " to " + endTime;
+                }
+                else{
+                    time=timeArray[timeSlotIndex];
+                }
+                break;
+            }
+        }
+
+        if(location==""){
+            for(let i=0; i<data.length; i++){
+                if(data[i][timeSlotIndex].classbatch.includes(className)){
+                    location = data[i][timeSlotIndex].location;
+                    if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex];
+                        var time2=timeArray[timeSlotIndex+1];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else if(data[i][timeSlotIndex].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex-1];
+                        var time2=timeArray[timeSlotIndex];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else{
+                        time=timeArray[timeSlotIndex];
+                    }
+                    break;
+                }
+            }
+        }
+
+        if(location=="" || location=="-"){
+            location = "Not available";
+        }
+
+        return res.status(200).json({ location, time });
+    } catch (error) {
+        console.log(error);
+        
+    }
+}
+
 const getStudentLocation = async (req, res) => {
     try {
         var time="";
         const { className, batch } = req.body;
-        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className });
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+        // console.log(className, batch);
+        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
         const timeArray = [];
         for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
@@ -1129,7 +1885,10 @@ const getStudentsLocation = async (req, res) => {
 
     var studentInfoWithLocation = [];
 
-    const allStudents = await Student.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+    const allStudents = await Student.find({academicYear: selectedAcademicYear.academicYear, sem: selectedAcademicYear.semester});
 
     for(var m=0; m<allStudents.length; m++){
         try {
@@ -1268,7 +2027,9 @@ const getFacultyLocation = async (req, res) => {
         const { facultyName } = req.body;
         var time="";
         // console.log(facultyName);
-        const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName });
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+        const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
         // console.log(spreadSheetFacultyTimeTable);
         if (!spreadSheetFacultyTimeTable) {
             return res.status(200).json({ location: "Not available", time });
@@ -1358,15 +2119,498 @@ const getFacultyLocation = async (req, res) => {
     }
 }
 
-const viewShifts = async (req, res) => {
+const postViewShifts = async (req, res) => {
+    const {academicYear, semester} = req.body;
     try {
-        const shift = await Shift.find({}).populate('facultyId').sort({ date: -1 });;
+        var shift = [];
+         shift = await Shift.find({academicYear, semester}).populate('facultyId').sort({ date: -1 });;
         res.status(201).json({shift});
     } catch (error) {
         console.log(error);
         
     }
 }
+
+const viewShifts = async (req, res) => {
+    try {
+        const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+        const shift = await Shift.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester}).populate('facultyId').sort({ date: -1 });;
+        res.status(201).json({shift});
+    } catch (error) {
+        console.log(error);
+        
+    }
+}
+
+const validateOtpLogin = async (req, res) => {
+    const { email, otp } = req.body;
+      
+          let otp_data = await Otp.findOne({ email: email });
+         
+          if (otp_data.otpExpires < Date.now()) {
+              return res.json({ error: true, message: "Expired OTP! Please click on resend otp" });
+          }
+          if (otp !== otp_data.otp) {
+              return res.json({ error: true, message: "Invalid OTP" });
+              }
+          
+          res.json({ error: false, message: "OTP verified" });
+  }
+
+  const changePassword = async (req, res)=>{
+    const { email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    const admin = await Admin.findOne({ email });
+    if (admin) {
+        admin.password = hashedPassword;
+        await admin.save();
+        res.json({ error: false, message: "Password changed successfully" });
+        }
+  }
+
+  const getLocationBasedOnClassSelection = async (req, res) => {
+    const {academicYear, semester, selectedClass} = req.body;
+    const className = selectedClass;
+    const information = [];
+
+    try {
+        var time="";
+        // const { className, batch } = req.body;
+        // const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+        // console.log(className, batch);
+        const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className, academicYear, semester });
+        const timeArray = [];
+        for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
+            timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
+        }
+        // console.log(timeArray);
+        const currentDate = new Date();
+        var day = currentDate.getDay();
+        // day=3;
+
+        if(day == 0){
+            return res.status(200).json({ information });
+        }
+
+        var data = [];
+        if(day ==1 ){
+            data = spreadSheetTimeTable.weeklyTimetable.Monday;
+        }
+        else if(day == 2){
+            data = spreadSheetTimeTable.weeklyTimetable.Tuesday;
+        }
+        else if(day == 3){
+            data = spreadSheetTimeTable.weeklyTimetable.Wednesday;
+        }
+        else if(day == 4){
+            data = spreadSheetTimeTable.weeklyTimetable.Thursday;
+        }
+        else if(day == 5){
+            data = spreadSheetTimeTable.weeklyTimetable.Friday;
+        }
+        else if(day == 6){
+            data = spreadSheetTimeTable.weeklyTimetable.Saturday;
+        }
+
+        // console.log(data);
+        const currentTime = moment();
+        // const currentTime = moment('08:39 AM', 'hh:mm A');
+
+        let timeSlotIndex = -1;
+        for (let i = 0; i < timeArray.length; i++) {
+            const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+            // Use moment to check if the selected time is within the range
+            if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                timeSlotIndex = i;
+                break;
+            }
+        }
+
+        // console.log(data);
+
+
+        if(timeSlotIndex==-1){
+            return res.status(200).json({ information });
+        }
+
+        var location = "";
+        var type = "";
+        var subject = "";
+        var classbatch = "";
+        var faculty = "";
+
+
+            for(let i=0; i<data.length; i++){
+                    location = data[i][timeSlotIndex].location;
+                    type = data[i][timeSlotIndex].type;
+                    subject = data[i][timeSlotIndex].subject;
+                    classbatch = data[i][timeSlotIndex].classbatch;
+                    faculty = data[i][timeSlotIndex].faculty;
+                    if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex];
+                        var time2=timeArray[timeSlotIndex+1];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else if(data[i][timeSlotIndex].type=="Lab"){
+                        var time1=timeArray[timeSlotIndex-1];
+                        var time2=timeArray[timeSlotIndex];
+                        let startTime = time1.split(" to ")[0];
+                        let endTime = time2.split(" to ")[1];
+                        time = startTime + " to " + endTime;
+                    }
+                    else{
+                        time=timeArray[timeSlotIndex];
+                    }
+                    information.push({type, time, subject, classbatch, faculty, location});
+            }
+        
+
+        if(data.length>1 && information[0].classbatch != information[data.length-1].classbatch){
+            return res.status(200).json({ information, isClass: false });
+        }
+
+        return res.status(200).json({ information, isClass: true });
+    } catch (error) {
+        console.log(error);
+        
+    }
+  }
+
+  const manageStudents = async (req, res) => {
+    const {academicYear, semester} = req.body;
+    try {
+        const students = await Student.find({academicYear, sem: semester});
+        return res.status(200).json({students});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const manageFaculties = async (req, res) => {
+    const {academicYear, semester} = req.body;
+    try {
+        const faculties = await Faculty.find({academicYear, semester});
+        return res.status(200).json({faculties});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const addStudent = async (req, res) => {
+    const {
+        academicYear,
+        sem,
+        enrollment,
+        name,
+        branch,
+        hostellerCommuter,
+        semester,
+        phone,
+        parentsPhone,
+        gnuEmail,
+        email,
+        batch,
+        classField, // 'class' is a reserved word, renamed to classField
+      } = req.body;
+
+    try {
+        const hashedPassword = await bcrypt.hash(process.env.PASSWORD, 10);
+        const newStudent = new Student({
+            academicYear,
+            sem,
+            enrollment,
+            name,
+            branch,
+            hostellercommuter: hostellerCommuter,
+            semester,
+            phone,
+            parentsphone: parentsPhone,
+            gnuemail: gnuEmail,
+            email,
+            batch,
+            class: classField,
+            password: hashedPassword
+          });
+
+          await newStudent.save();
+          res.status(200).json();
+
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const addFaculty = async (req, res) => {
+    const {
+        academicYear,
+        semester,
+        enrollment,
+        name,
+        branch,
+        phone,
+        gnuEmail,
+      } = req.body;
+
+    try {
+        const hashedPassword = await bcrypt.hash(process.env.PASSWORD, 10);
+        const newFaculty = new Faculty({
+            academicYear,
+            semester,
+            enrollment,
+            name,
+            branch,
+            phone,
+            gnuemail: gnuEmail,
+            password: hashedPassword
+          });
+
+          await newFaculty.save();
+          res.status(200).json();
+
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const addTimetable = async (req, res) => {
+    try{
+        const {academicYear, semester, weeklyTimetable, classFaculty} = req.body;
+
+         // Check if classFaculty starts with a digit
+        if (/^\d/.test(classFaculty)) {
+            const classTimetable = new SpreadSheetTimeTable({ class: classFaculty, weeklyTimetable, academicYear, semester });
+            await classTimetable.save();
+        } else {
+            const facultyTimetable = new SpreadSheetFacultyTimeTable({ facultyName: classFaculty, weeklyTimetable, academicYear, semester });
+            await facultyTimetable.save();
+        }
+       
+        res.status(201).json();
+    } catch(error) {
+        console.log(error);
+    }
+  }
+
+  const deleteStudent = async(req, res) => {
+    try{
+        const {id} = req.body;
+        await Student.findByIdAndDelete(id);
+        res.status(200).json();
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const deleteFaculty = async(req, res) => {
+    try{
+        const {id} = req.body;
+        await Faculty.findByIdAndDelete(id);
+        res.status(200).json();
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const deleteTimetable = async (req, res) => {
+    try {
+      const { id } = req.body;
+  
+      // Attempt to find and delete in SpreadSheetTimeTable first
+      const timetable = await SpreadSheetTimeTable.findByIdAndDelete(id);
+  
+      // If not found in SpreadSheetTimeTable, try deleting from SpreadSheetFacultyTimeTable
+      if (!timetable) {
+        await SpreadSheetFacultyTimeTable.findByIdAndDelete(id);
+      }
+  
+      res.status(200).json({ message: 'Timetable deleted successfully' });
+    } catch (error) {
+      console.error("Error while deleting timetable:", error);
+      res.status(500).json({ error: "Failed to delete timetable" });
+    }
+  };
+  
+
+  const getStudentForUpdate = async(req, res) => {
+    try{
+        const {id} = req.body;
+        // console.log(id);
+        const student = await Student.findById(id);
+        res.status(200).json({student, id});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const getFacultyForUpdate = async(req, res) => {
+    try{
+        const {id} = req.body;
+        // console.log(id);
+        const faculty = await Faculty.findById(id);
+        res.status(200).json({faculty, id});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const getTimetableForUpdate = async(req, res) => {
+    try{
+        const {id} = req.body;
+        // console.log(id);
+        const timetable = await SpreadSheetTimeTable.findById(id);
+        if (!timetable) {
+            await SpreadSheetFacultyTimeTable.findById(id);
+          }
+        res.status(200).json({timetable, id});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const updateStudentWithData = async (req, res) => {
+    try {
+        const {
+            academicYear,
+            sem,
+            enrollment,
+            name,
+            branch,
+            hostellerCommuter,
+            semester,
+            phone,
+            parentsPhone,
+            gnuEmail,
+            email,
+            batch,
+            classField,
+            id
+          } = req.body;
+
+          const updatedStudent = await Student.findByIdAndUpdate(
+            id,
+            {
+                academicYear,
+                sem,
+                enrollment,
+                name,
+                branch,
+                hostellercommuter: hostellerCommuter,
+                semester,
+                phone,
+                parentsphone: parentsPhone,
+                gnuemail: gnuEmail,
+                email,
+                batch,
+                class: classField
+            }
+          );
+
+          res.status(200).json();
+        
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const updateFacultyWithData = async (req, res) => {
+    try {
+        const {
+            academicYear,
+            enrollment,
+            name,
+            branch,
+            semester,
+            phone,
+            gnuEmail,
+            id
+          } = req.body;
+
+          const updatedFaculty = await Faculty.findByIdAndUpdate(
+            id,
+            {
+                academicYear,
+                enrollment,
+                name,
+                branch,
+                semester,
+                phone,
+                gnuemail: gnuEmail
+            }
+          );
+
+          res.status(200).json();
+        
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const updateTimetableWithData = async (req, res) => {
+    try {
+        const {
+            academicYear,
+            semester,
+            classFaculty,
+            weeklyTimetable,
+            id
+          } = req.body;
+
+          if (/^\d/.test(classFaculty)) {
+            const updatedTimetable = await SpreadSheetTimeTable.findByIdAndUpdate(
+                id,
+                {
+                    academicYear,
+                    semester,
+                    class: classFaculty,
+                    weeklyTimetable
+                }
+              );
+        } else {
+            const updatedTimetable = await SpreadSheetFacultyTimeTable.findByIdAndUpdate(
+                id,
+                {
+                    academicYear,
+                    semester,
+                    facultyName: classFaculty,
+                    weeklyTimetable
+                }
+              );
+        }
+
+          res.status(200).json();
+
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
+  const manageTimetable = async (req, res) => {
+    const {academicYear, semester} = req.body;
+    try {
+        const timetable1 = await SpreadSheetTimeTable.find({academicYear, semester});
+        const timetable2 = await SpreadSheetFacultyTimeTable.find({academicYear, semester});
+
+        const timetable = [];
+        for(var i=0; i<timetable1.length; i++){
+            timetable.push({_id: timetable1[i]._id, classFaculty: timetable1[i].class});
+        }
+        for(var i=0; i<timetable2.length; i++){
+            timetable.push({_id: timetable2[i]._id, classFaculty: timetable2[i].facultyName});
+        }
+
+        // console.log(timetable);
+        res.status(200).json({timetable});
+    } catch (error) {
+        console.log(error);
+    }
+  }
+
 
 module.exports = {
     validateAdmin,
@@ -1389,5 +2633,39 @@ module.exports = {
     getFacultyLocation,
     getRoomData,
     viewShifts,
-    getStudentLocationBasedOnPrompt
+    getStudentLocationBasedOnPrompt,
+    addAdmin,
+    addAcademicYear,
+    getYears,
+    selectedYear,
+    postViewShifts,
+    postGetSheets,
+    postGetTimetableBasedOnSheetName,
+    postGetDayWiseTimetable,
+    postGetTimetableBasedOnTime,
+    postGetStudentsData,
+    postGetFacultyData,
+    postGetRoomData,
+    postGetStudentLocation,
+    otp,
+    validateOtpLogin,
+    changePassword,
+    addPrincipal,
+    getClassSheets,
+    getLocationBasedOnClassSelection,
+    manageStudents,
+    addStudent,
+    deleteStudent,
+    getStudentForUpdate,
+    updateStudentWithData,
+    manageFaculties,
+    deleteFaculty,
+    addFaculty,
+    getFacultyForUpdate,
+    updateFacultyWithData,
+    manageTimetable,
+    deleteTimetable,
+    addTimetable,
+    getTimetableForUpdate,
+    updateTimetableWithData
 }

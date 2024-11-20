@@ -22,6 +22,9 @@ router.post("/startShift", authenticateToken, facultyControllers.startShift);
 router.post("/endShift", authenticateToken, facultyControllers.endShift);
 router.get("/get-fields", authenticateToken, facultyControllers.getFields);
 router.get("/getShiftsOfFaculty", authenticateToken, facultyControllers.getShiftsOfFaculty);
+router.post("/get-class-timetables-sheetname", facultyControllers.getClassSheets);
+router.post("/get-location-based-on-class-selection", facultyControllers.getLocationBasedOnClassSelection);
+
 
 
 module.exports = router;

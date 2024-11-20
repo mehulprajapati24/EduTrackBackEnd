@@ -40,6 +40,12 @@ const StudentSchema = new Schema({
     },
     profileLink: {
         type: String
+    },
+    academicYear: {
+        type: String
+    },
+    sem: {
+        type: String
     }
 });
 

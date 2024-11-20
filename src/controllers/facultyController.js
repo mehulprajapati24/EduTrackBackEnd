@@ -4,6 +4,7 @@ const SpreadSheetFacultyTimeTable = require("../model/SpreadSheetFacultyTimetabl
 const GoogleSpreadsheetModel = require("../model/GoogleSpreadsheetModel")
 const Admin = require("../model/AdminModel")
 const Student = require("../model/StudentModel")
+const AcademicYear = require("../model/AcademicYearModel")
 const Faculty = require("../model/FacultyModel")
 const Otp = require("../model/OtpModel")
 const Shift = require("../model/ShiftModel")
@@ -46,7 +47,9 @@ const login = async (req, res) => {
     else if(!password){
       return res.status(200).json({error:true, message:"Please enter your password"});
     }
-    const faculty = await Faculty.findOne({enrollment: enrollmentNumber});
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    const faculty = await Faculty.findOne({enrollment: enrollmentNumber, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
     if (!faculty) {
       return res.status(200).json({error:true, message:"Employee ID not found!"});
     }
@@ -102,8 +105,11 @@ const login = async (req, res) => {
 
   const otp = async (req, res) => {
     const { email } = req.body;
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
     const faculty = await Faculty.findOne({ 
-        gnuemail: email
+        gnuemail: email,
+        academicYear: selectedAcademicYear.academicYear,
+        semester: selectedAcademicYear.semester
     });
 
     if (!faculty) {
@@ -167,7 +173,9 @@ const validateOtpLogin = async (req, res) => {
 const changePassword = async (req, res)=>{
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
-  const faculty = await Faculty.findOne({ gnuemail: email });
+  const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+  const faculty = await Faculty.findOne({ gnuemail: email, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
   if (faculty) {
       faculty.password = hashedPassword;
       await faculty.save();
@@ -195,7 +203,10 @@ const getSchedule = async (req, res) => {
 
     const schedule = [];
 
-    const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName: initials });
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+    const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName: initials, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
     const timeArray = [];
     for(let i=0; i<spreadSheetFacultyTimeTable.weeklyTimetable.Monday[0].length; i++){
         timeArray.push(spreadSheetFacultyTimeTable.weeklyTimetable.Monday[0][i].time);
@@ -466,7 +477,10 @@ const getFacultyTimetable = async (req, res) => {
 
     let timetable1;
 
-        let sheetId = await GoogleSpreadsheetModel.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
         let spreadsheetId = sheetId[0].sheetId;
 
         const fullName = faculty.name;
@@ -514,7 +528,10 @@ const getFacultyTimetableBasedOnDay = async (req, res) => {
 
     let timetable1;
 
-        let sheetId = await GoogleSpreadsheetModel.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
         let spreadsheetId = sheetId[0].sheetId;
 
         const fullName = faculty.name;
@@ -563,7 +580,10 @@ const getFacultyTimetableBasedOnTime = async (req, res) => {
 
     let timetable1;
 
-        let sheetId = await GoogleSpreadsheetModel.find();
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+
+        let sheetId = await GoogleSpreadsheetModel.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
         let spreadsheetId = sheetId[0].sheetId;
 
         const fullName = faculty.name;
@@ -650,11 +670,15 @@ const startShift = async (req, res) => {
     const formattedDate = `${day}-${month}-${year}`;
 
     // console.log(formattedDate); // Output: 'DD-MM-YYYY'
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
 
     const newShift = new Shift({
       facultyId: user.id,
       startTime: startTime,
-      date: formattedDate
+      date: formattedDate,
+      academicYear: selectedAcademicYear.academicYear,
+      semester: selectedAcademicYear.semester
     });
 
     await newShift.save();
@@ -742,6 +766,159 @@ const getShiftsOfFaculty = async(req, res) => {
   }
 }
 
+
+const getClassSheets = async (req, res) => {
+  const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+  try {
+    // Fetch data from both models
+
+    const classTimetables = await SpreadSheetTimeTable.find({academicYear:  selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
+
+
+    var sheets=[];
+
+    for(let i of classTimetables){
+        sheets.push(i.class);
+    }
+
+    // Send a response to indicate successful fetch
+    res.status(200).json({
+      success: true,
+      message: 'Data fetched successfully',
+      sheets
+    });
+  } catch (error) {
+    console.error('Error fetching timetables:', error);
+
+    // Send an error response if something goes wrong
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching timetables',
+      error: error.message,
+    });
+  }
+};
+
+
+const getLocationBasedOnClassSelection = async (req, res) => {
+  const {selectedClass} = req.body;
+  const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+  const className = selectedClass;
+  const information = [];
+
+  try {
+      var time="";
+      // const { className, batch } = req.body;
+      // const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+      // console.log(className, batch);
+      const spreadSheetTimeTable = await SpreadSheetTimeTable.findOne({ class: className, academicYear:  selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
+      const timeArray = [];
+      for(let i=0; i<spreadSheetTimeTable.weeklyTimetable.Monday[0].length; i++){
+          timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
+      }
+      // console.log(timeArray);
+      const currentDate = new Date();
+      var day = currentDate.getDay();
+      // day=2;
+
+      if(day == 0){
+          return res.status(200).json({ information });
+      }
+
+      var data = [];
+      if(day ==1 ){
+          data = spreadSheetTimeTable.weeklyTimetable.Monday;
+      }
+      else if(day == 2){
+          data = spreadSheetTimeTable.weeklyTimetable.Tuesday;
+      }
+      else if(day == 3){
+          data = spreadSheetTimeTable.weeklyTimetable.Wednesday;
+      }
+      else if(day == 4){
+          data = spreadSheetTimeTable.weeklyTimetable.Thursday;
+      }
+      else if(day == 5){
+          data = spreadSheetTimeTable.weeklyTimetable.Friday;
+      }
+      else if(day == 6){
+          data = spreadSheetTimeTable.weeklyTimetable.Saturday;
+      }
+
+      // console.log(data);
+      const currentTime = moment();
+      // const currentTime = moment('08:39 AM', 'hh:mm A');
+
+      let timeSlotIndex = -1;
+      for (let i = 0; i < timeArray.length; i++) {
+          const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+          const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+
+          // Use moment to check if the selected time is within the range
+          if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+              timeSlotIndex = i;
+              break;
+          }
+      }
+
+      // console.log(data);
+
+
+      if(timeSlotIndex==-1){
+          return res.status(200).json({ information });
+      }
+
+      var location = "";
+      var type = "";
+      var subject = "";
+      var classbatch = "";
+      var faculty = "";
+
+
+          for(let i=0; i<data.length; i++){
+                  location = data[i][timeSlotIndex].location;
+                  type = data[i][timeSlotIndex].type;
+                  subject = data[i][timeSlotIndex].subject;
+                  classbatch = data[i][timeSlotIndex].classbatch;
+                  faculty = data[i][timeSlotIndex].faculty;
+                  if(data[i][timeSlotIndex].type=="Lab" && data[i][timeSlotIndex+1].type=="Lab"){
+                      var time1=timeArray[timeSlotIndex];
+                      var time2=timeArray[timeSlotIndex+1];
+                      let startTime = time1.split(" to ")[0];
+                      let endTime = time2.split(" to ")[1];
+                      time = startTime + " to " + endTime;
+                  }
+                  else if(data[i][timeSlotIndex].type=="Lab"){
+                      var time1=timeArray[timeSlotIndex-1];
+                      var time2=timeArray[timeSlotIndex];
+                      let startTime = time1.split(" to ")[0];
+                      let endTime = time2.split(" to ")[1];
+                      time = startTime + " to " + endTime;
+                  }
+                  else{
+                      time=timeArray[timeSlotIndex];
+                  }
+                  information.push({type, time, subject, classbatch, faculty, location});
+          }
+      
+
+      if(data.length>1 && information[0].classbatch != information[data.length-1].classbatch){
+          return res.status(200).json({ information, isClass: false });
+      }
+
+      return res.status(200).json({ information, isClass: true });
+  } catch (error) {
+      console.log(error);
+      
+  }
+}
+
+
+
+
+
   module.exports = {
     login,
     requireToChangePassword,
@@ -756,5 +933,7 @@ const getShiftsOfFaculty = async(req, res) => {
     startShift,
     endShift,
     getFields,
-    getShiftsOfFaculty
+    getShiftsOfFaculty,
+    getClassSheets,
+    getLocationBasedOnClassSelection
   };

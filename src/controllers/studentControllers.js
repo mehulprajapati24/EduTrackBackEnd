@@ -3,6 +3,7 @@ const Timetable = require("../model/AdminTimeTableModel")
 const SpreadSheetTimeTable = require("../model/SpreadSheetTimetableModel")
 const GoogleSpreadsheetModel = require("../model/GoogleSpreadsheetModel")
 const Admin = require("../model/AdminModel")
+const AcademicYear = require("../model/AcademicYearModel")
 const Student = require("../model/StudentModel")
 const Faculty = require("../model/FacultyModel")
 const Otp = require("../model/OtpModel")
@@ -45,7 +46,9 @@ const login = async (req, res) => {
     else if(!password){
       return res.status(200).json({error:true, message:"Please enter your password"});
     }
-    const student = await Student.findOne({enrollment: enrollmentNumber});
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+    const student = await Student.findOne({enrollment: enrollmentNumber, academicYear: selectedAcademicYear.academicYear, sem:selectedAcademicYear.semester});
     if (!student) {
       return res.status(200).json({error:true, message:"Enrollment not found!"});
     }
@@ -136,10 +139,13 @@ const getTimetable = async (req, res) => {
 
   const otp = async (req, res) => {
     const { email } = req.body;
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
     const student = await Student.findOne({ 
-      $or: [
-        { email: email },
-        { gnuemail: email }
+      $and: [
+        { $or: [{ email: email }, { gnuemail: email }] },
+        { academicYear: selectedAcademicYear.academicYear },
+        { sem: selectedAcademicYear.semester }
       ]
     });
 
@@ -204,12 +210,16 @@ const validateOtpLogin = async (req, res) => {
 const changePassword = async (req, res)=>{
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
+  const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
   const student = await Student.findOne({ 
-    $or: [
-      { email: email },
-      { gnuemail: email }
+    $and: [
+      { $or: [{ email: email }, { gnuemail: email }] },
+      { academicYear: selectedAcademicYear.academicYear },
+      { sem: selectedAcademicYear.semester }
     ]
   });
+
   if (student) {
       student.password = hashedPassword;
       await student.save();
@@ -237,7 +247,9 @@ const fetchProfile = async (req, res) => {
 
 
 const getFaculties = async (req, res) => {
-  const faculties = await Faculty.find();
+  const selectedAcademicYear = await AcademicYear.findOne({selected: true});
+
+  const faculties = await Faculty.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
   // console.log(faculties);
   res.json({faculties});
 }
@@ -280,8 +292,21 @@ const getStudentTimetableBasedOnTime = async (req, res) => {
       timetable2.push(timetable1[0]);
       // console.log(timetable1.length);
       // console.log(part);
+      var jump=1;
+      if(timetable1.length==13){
+        jump=2;
+      }
+      else if(timetable1.length==19){
+        jump=3;
+      }
+      else if(timetable1.length==25){
+        jump=4;
+      }
+      else if(timetable1.length==31){
+        jump=5;
+      }
 
-      for(var i=part; i<timetable1.length; i=i+part){
+      for(var i=part; i<timetable1.length; i=i+jump){
         // console.log(i);
         timetable2.push(timetable1[i]);
       }
@@ -372,8 +397,21 @@ const getStudentTimetableBasedOnDay = async (req, res) => {
       timetable2.push(timetable1[0]);
       // console.log(timetable1.length);
       // console.log(part);
+      var jump=1;
+      if(timetable1.length==13){
+        jump=2;
+      }
+      else if(timetable1.length==19){
+        jump=3;
+      }
+      else if(timetable1.length==25){
+        jump=4;
+      }
+      else if(timetable1.length==31){
+        jump=5;
+      }
 
-      for(var i=part; i<timetable1.length; i=i+part){
+      for(var i=part; i<timetable1.length; i=i+jump){
         // console.log(i);
         timetable2.push(timetable1[i]);
       }
@@ -435,8 +473,21 @@ const getStudentTimetable = async (req, res) => {
       timetable2.push(timetable1[0]);
       // console.log(timetable1.length);
       // console.log(part);
+      var jump=1;
+      if(timetable1.length==13){
+        jump=2;
+      }
+      else if(timetable1.length==19){
+        jump=3;
+      }
+      else if(timetable1.length==25){
+        jump=4;
+      }
+      else if(timetable1.length==31){
+        jump=5;
+      }
 
-      for(var i=part; i<timetable1.length; i=i+part){
+      for(var i=part; i<timetable1.length; i=i+jump){
         // console.log(i);
         timetable2.push(timetable1[i]);
       }

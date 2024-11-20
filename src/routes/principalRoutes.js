@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const adminControllers = require("../controllers/adminControllers");
+const principalControllers = require("../controllers/principalControllers");
 const { authenticateToken } = require("../../utilities");
 
 
@@ -11,8 +12,8 @@ router.post("/addPrincipal", adminControllers.addPrincipal);
 router.post("/selected-year", adminControllers.selectedYear);
 router.post("/add-academicyear", adminControllers.addAcademicYear);
 router.get("/academicyears", adminControllers.getYears);
-router.post("/login", adminControllers.validateAdmin);
-router.get("/validate", authenticateToken, adminControllers.validate);
+router.post("/login", principalControllers.validatePrincipal);
+router.get("/validate", authenticateToken, principalControllers.validate);
 router.get("/getclasses", adminControllers.getClasses);
 router.get("/getbatches", adminControllers.getBatches);
 router.get("/gettimes", adminControllers.getTimes);
@@ -42,23 +43,8 @@ router.post("/get-room-data", adminControllers.postGetRoomData);
 router.get("/viewShifts", adminControllers.viewShifts);
 router.post("/viewShifts", adminControllers.postViewShifts);
 router.post("/get-student-location-based-on-prompt", adminControllers.getStudentLocationBasedOnPrompt);
-router.post("/otp", adminControllers.otp);
-router.post("/forgot-password/otp", adminControllers.validateOtpLogin);
-router.post("/change-password", adminControllers.changePassword);
-router.post("/manage-students", adminControllers.manageStudents);
-router.post("/manage-faculties", adminControllers.manageFaculties);
-router.post("/add-student", adminControllers.addStudent);
-router.post("/add-faculty", adminControllers.addFaculty);
-router.post("/add-timetable", adminControllers.addTimetable);
-router.post("/delete-student", adminControllers.deleteStudent);
-router.post("/delete-faculty", adminControllers.deleteFaculty);
-router.post("/delete-timetable", adminControllers.deleteTimetable);
-router.post("/get-student-for-update", adminControllers.getStudentForUpdate);
-router.post("/get-faculty-for-update", adminControllers.getFacultyForUpdate);
-router.post("/get-timetable-for-update", adminControllers.getTimetableForUpdate);
-router.post("/update-student-with-data", adminControllers.updateStudentWithData);
-router.post("/update-faculty-with-data", adminControllers.updateFacultyWithData);
-router.post("/update-timetable-with-data", adminControllers.updateTimetableWithData);
-router.post("/manage-timetables", adminControllers.manageTimetable)
+router.post("/otp", principalControllers.otp);
+router.post("/forgot-password/otp", principalControllers.validateOtpLogin);
+router.post("/change-password", principalControllers.changePassword);
 
 module.exports = router;
