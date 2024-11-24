@@ -53,6 +53,9 @@ const login = async (req, res) => {
       return res.status(200).json({error:true, message:"Enrollment not found!"});
     }
 
+    console.log(password);
+    console.log(student.password);
+
     const isMatch = await bcrypt.compare(password, student.password);
 
     if (!isMatch) {
