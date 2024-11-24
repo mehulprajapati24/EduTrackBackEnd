@@ -16,8 +16,8 @@ const authenticateToken = (requiredRole) => {
                 message: "Invalid token"
             });
 
-            console.log(user.role+ " "+requiredRole);
-            if(user.role != requiredRole) {
+            if(user.role !== requiredRole) {
+                console.log(user.role+ " "+requiredRole);
                 return res.status(403).json({ error: true, message: "Unauthorized" });
             }
     
