@@ -53,9 +53,6 @@ const login = async (req, res) => {
       return res.status(200).json({error:true, message:"Enrollment not found!"});
     }
 
-    console.log(password);
-    console.log(student.password);
-
     const isMatch = await bcrypt.compare(password, student.password);
 
     if (!isMatch) {
@@ -66,9 +63,10 @@ const login = async (req, res) => {
         expiresIn: "1d",
     });
 
-    // console.log(accessToken);
+    console.log(student.password);
+    console.log("env: "+ process.env.password);
 
-    var requirePasswordChange=await bcrypt.compare(process.env.password, student.password);;
+    var requirePasswordChange = await bcrypt.compare(process.env.password, student.password);;
     
     return res.status(200).json({
         error: false,
