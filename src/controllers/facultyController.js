@@ -64,7 +64,7 @@ const login = async (req, res) => {
         expiresIn: "1d",
     });
 
-    var requirePasswordChange=await bcrypt.compare(process.env.password, faculty.password);;
+    var requirePasswordChange=await bcrypt.compare(process.env.PASSWORD, faculty.password);;
     
     return res.status(200).json({
         error: false,
