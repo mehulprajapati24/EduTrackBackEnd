@@ -362,7 +362,7 @@ const validateAdmin = async (req, res) => {
         return res.json({ error: true, message: "Invalid password" });
     }
 
-    const accessToken = jwt.sign({ adminId: admin._id, email: admin.email }, process.env.ACCESS_TOKEN_SECRET, {
+    const accessToken = jwt.sign({ adminId: admin._id, email: admin.email, role: "admin" }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1d",
     });
 

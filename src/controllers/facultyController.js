@@ -60,7 +60,7 @@ const login = async (req, res) => {
       return res.status(201).json({error:true, message:"Invalid password!"});
     }
 
-    const accessToken = jwt.sign({ id: faculty._id }, process.env.ACCESS_TOKEN_SECRET, {
+    const accessToken = jwt.sign({ id: faculty._id, role: "faculty" }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1d",
     });
 

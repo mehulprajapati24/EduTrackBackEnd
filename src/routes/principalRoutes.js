@@ -13,7 +13,7 @@ router.post("/selected-year", adminControllers.selectedYear);
 router.post("/add-academicyear", adminControllers.addAcademicYear);
 router.get("/academicyears", adminControllers.getYears);
 router.post("/login", principalControllers.validatePrincipal);
-router.get("/validate", authenticateToken, principalControllers.validate);
+router.get("/validate", authenticateToken("principal"), principalControllers.validate);
 router.get("/getclasses", adminControllers.getClasses);
 router.get("/getbatches", adminControllers.getBatches);
 router.get("/gettimes", adminControllers.getTimes);

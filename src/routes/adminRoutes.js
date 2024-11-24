@@ -12,7 +12,7 @@ router.post("/selected-year", adminControllers.selectedYear);
 router.post("/add-academicyear", adminControllers.addAcademicYear);
 router.get("/academicyears", adminControllers.getYears);
 router.post("/login", adminControllers.validateAdmin);
-router.get("/validate", authenticateToken, adminControllers.validate);
+router.get("/validate", authenticateToken("admin"), adminControllers.validate);
 router.get("/getclasses", adminControllers.getClasses);
 router.get("/getbatches", adminControllers.getBatches);
 router.get("/gettimes", adminControllers.getTimes);

@@ -74,7 +74,7 @@ const transporter = nodemailer.createTransport({
         return res.json({ error: true, message: "Invalid password" });
     }
 
-    const accessToken = jwt.sign({ principalId: principal._id, email: principal.email }, process.env.ACCESS_TOKEN_SECRET, {
+    const accessToken = jwt.sign({ principalId: principal._id, email: principal.email, role: "principal" }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1d",
     });
 
