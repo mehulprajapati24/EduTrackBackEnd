@@ -66,7 +66,7 @@ const login = async (req, res) => {
     console.log(student.password);
     console.log("env: "+ process.env.password);
 
-    var requirePasswordChange = await bcrypt.compare(process.env.password, student.password);;
+    var requirePasswordChange = await bcrypt.compare(process.env.PASSWORD, student.password);;
     
     return res.status(200).json({
         error: false,
