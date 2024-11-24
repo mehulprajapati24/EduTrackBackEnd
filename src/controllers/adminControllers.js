@@ -688,45 +688,24 @@ const addSheetId = async (req, res) => {
                 }
                 }
                 else{
-                    if(rowsData[k][8] !== undefined){
+                    
                         const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
                         if(existingFaculty){
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: rowsData[k][8], password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6] || '', gnuemail: rowsData[k][8] || '', facultyClassField: rowsData[k][11] || '' , password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
                             facultyData.save();
                         }else{
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: rowsData[k][8], password: hashedPassword, academicYear, semester});
+                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6] || '', gnuemail: rowsData[k][8] || '', facultyClassField: rowsData[k][11] || '', password: hashedPassword, academicYear, semester});
                             facultyData.save();
                         }
-                    }
-                    else if(rowsData[k][6] !== undefined){
-                        const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
-                        if(existingFaculty){
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
-                            facultyData.save();
-                        }else{
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6], gnuemail: '', password: hashedPassword, academicYear, semester});
-                            facultyData.save();
-                        }
-                    }
-                    else{
-                        const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
-                        if(existingFaculty){
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
-                            facultyData.save();
-                        }else{
-                            const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword, academicYear, semester});
-                            facultyData.save();
-                        }
-                    }
                 }
             }else{
                 const existingFaculty = await Faculty.findOne({enrollment: rowsData[k][1]});
                 if(existingFaculty){
-                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
+                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6] || '', gnuemail: rowsData[k][8] || '',facultyClassField: rowsData[k][11] || '', password: existingFaculty.password, academicYear, semester, ...(existingFaculty.profileLink && { profileLink: existingFaculty.profileLink })});
                     facultyData.save();
                 }
                 else{
-                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: '', gnuemail: '', password: hashedPassword, academicYear, semester});
+                    const facultyData = new Faculty({enrollment: rowsData[k][1], name: rowsData[k][2], branch: rowsData[k][3], phone: rowsData[k][6] || '', gnuemail: rowsData[k][8] || '',facultyClassField: rowsData[k][11] || '', password: hashedPassword, academicYear, semester});
                     facultyData.save();
                 }
             }
@@ -1673,7 +1652,7 @@ const postGetStudentLocation = async (req, res) => {
 
         // console.log(data);
         const currentTime = moment();
-        // const currentTime = moment('09:39 AM', 'hh:mm A');
+        // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -1798,7 +1777,7 @@ const getStudentLocation = async (req, res) => {
 
         // console.log(data);
         const currentTime = moment();
-        // const currentTime = moment('09:39 AM', 'hh:mm A');
+        // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -1932,7 +1911,7 @@ const getStudentsLocation = async (req, res) => {
     
             // console.log(data);
             const currentTime = moment();
-            // const currentTime = moment('09:39 AM', 'hh:mm A');
+            // const currentTime = moment('08:39 AM', 'hh:mm A');
     
             let timeSlotIndex = -1;
             for (let i = 0; i < timeArray.length; i++) {
@@ -2043,7 +2022,7 @@ const getFacultyLocation = async (req, res) => {
         const currentDate = new Date();
         var day = currentDate.getDay();
 
-        // day=3
+        // day=1
 
         if(day == 0){
             return res.status(200).json({ location: "Not available", time });
@@ -2070,7 +2049,7 @@ const getFacultyLocation = async (req, res) => {
         }
 
         const currentTime = moment();
-        // const currentTime = moment('09:20 AM', 'hh:mm A');
+        // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -2355,6 +2334,7 @@ const validateOtpLogin = async (req, res) => {
         branch,
         phone,
         gnuEmail,
+        facultyClassField
       } = req.body;
 
     try {
@@ -2366,6 +2346,7 @@ const validateOtpLogin = async (req, res) => {
             name,
             branch,
             phone,
+            facultyClassField,
             gnuemail: gnuEmail,
             password: hashedPassword
           });
@@ -2463,9 +2444,9 @@ const validateOtpLogin = async (req, res) => {
     try{
         const {id} = req.body;
         // console.log(id);
-        const timetable = await SpreadSheetTimeTable.findById(id);
+        var timetable = await SpreadSheetTimeTable.findById(id);
         if (!timetable) {
-            await SpreadSheetFacultyTimeTable.findById(id);
+            timetable = await SpreadSheetFacultyTimeTable.findById(id);
           }
         res.status(200).json({timetable, id});
     } catch (error) {
@@ -2528,6 +2509,7 @@ const validateOtpLogin = async (req, res) => {
             semester,
             phone,
             gnuEmail,
+            facultyClassField,
             id
           } = req.body;
 
@@ -2540,7 +2522,8 @@ const validateOtpLogin = async (req, res) => {
                 branch,
                 semester,
                 phone,
-                gnuemail: gnuEmail
+                gnuemail: gnuEmail,
+                facultyClassField
             }
           );
 

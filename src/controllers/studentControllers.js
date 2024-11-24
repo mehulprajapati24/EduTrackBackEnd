@@ -63,7 +63,7 @@ const login = async (req, res) => {
         expiresIn: "1d",
     });
 
-    console.log(accessToken);
+    // console.log(accessToken);
 
     var requirePasswordChange=await bcrypt.compare(process.env.password, student.password);;
     
@@ -559,7 +559,7 @@ const getSchedule = async (req, res) => {
         }
 
         const currentTime = moment();
-        // const currentTime = moment('08:45 AM', 'hh:mm A');
+        // const currentTime = moment('09:45 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {

@@ -206,7 +206,7 @@ const getSchedule = async (req, res) => {
     const selectedAcademicYear = await AcademicYear.findOne({selected: true});
 
 
-    const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName: initials, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
+    const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName: faculty.facultyClassField, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
     const timeArray = [];
     for(let i=0; i<spreadSheetFacultyTimeTable.weeklyTimetable.Monday[0].length; i++){
         timeArray.push(spreadSheetFacultyTimeTable.weeklyTimetable.Monday[0][i].time);
@@ -491,7 +491,7 @@ const getFacultyTimetable = async (req, res) => {
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: initials,
+            range: faculty.facultyClassField,
           });
 
         timetable1 = response.data.values;

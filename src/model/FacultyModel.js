@@ -20,6 +20,9 @@ const FacultySchema = new Schema({
     password: {
         type: String,
     },
+    facultyClassField: {
+        type: String,
+    },
     profileLink: {
         type: String
     },
