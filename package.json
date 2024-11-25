@@ -23,6 +23,7 @@
     "googleapis": "^144.0.0",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
+    "moment-timezone": "^0.5.46",
     "mongodb": "^6.9.0",
     "mongoose": "^8.6.2",
     "nodemailer": "^6.9.15",

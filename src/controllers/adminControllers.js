@@ -12,7 +12,7 @@ const Resource = require("../model/ResourceModel")
 const GoogleSpreadsheetModel = require("../model/GoogleSpreadsheetModel")
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
-const moment = require('moment');
+const moment = require('moment-timezone');
 const crypto = require('crypto');
 const nodemailer = require("nodemailer");
 const Otp = require("../model/OtpModel")
@@ -2019,12 +2019,15 @@ const getFacultyLocation = async (req, res) => {
             timeArray.push(spreadSheetFacultyTimeTable.weeklyTimetable.Monday[0][i].time);
         }
 
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        // const currentDate = new Date();
+        // var day = currentDate.getDay();
+
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
 
         // day=1
 
-        if(day == 0){
+        if(day == 7){
             return res.status(200).json({ location: "Not available", time });
         }
 
@@ -2048,14 +2051,14 @@ const getFacultyLocation = async (req, res) => {
             data = spreadSheetFacultyTimeTable.weeklyTimetable.Saturday;
         }
 
-        const currentTime = moment();
+        const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('08:39 AM', 'hh:mm A');
-        console.log(currentTime);
+        console.log(currentTime.format('hh:mm A'));
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
             const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             console.log(startTime+ " " + endTime);
