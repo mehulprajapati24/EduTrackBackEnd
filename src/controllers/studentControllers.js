@@ -323,7 +323,7 @@ const getStudentTimetableBasedOnTime = async (req, res) => {
         const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
         // Use moment to check if the selected time is within the range
-        if (moment(time, 'HH:mm').isBetween(startTime, endTime, null, '[)')) {
+        if (moment.tz(time, 'HH:mm', 'Asia/Kolkata').isBetween(startTime, endTime, null, '[)')) {
             timeSlotIndex = i;
             break;
         }
