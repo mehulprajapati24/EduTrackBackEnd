@@ -2009,7 +2009,7 @@ const getFacultyLocation = async (req, res) => {
         const selectedAcademicYear = await AcademicYear.findOne({selected: true});
 
         const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
-        console.log(spreadSheetFacultyTimeTable);
+        // console.log(spreadSheetFacultyTimeTable);
         if (!spreadSheetFacultyTimeTable) {
             return res.status(200).json({ location: "Not available", time });
         }
@@ -2050,6 +2050,7 @@ const getFacultyLocation = async (req, res) => {
 
         const currentTime = moment();
         // const currentTime = moment('08:39 AM', 'hh:mm A');
+        console.log(currentTime);
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -2057,6 +2058,7 @@ const getFacultyLocation = async (req, res) => {
             const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
 
             // Use moment to check if the selected time is within the range
+            console.log(startTime+ " " + endTime);
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {
                 timeSlotIndex = i;
                 break;
@@ -2093,7 +2095,7 @@ const getFacultyLocation = async (req, res) => {
             location = "Not available";
         }
 
-        console.log(location, time);
+        // console.log(location, time);
         res.status(200).json({location, time});
     } catch (error) {
         console.log(error);
