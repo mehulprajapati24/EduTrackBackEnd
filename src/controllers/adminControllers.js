@@ -1084,7 +1084,7 @@ const getTimetableBasedOnSheetName = async (req, res) => {
         // Loop through each time slot (skip the first column header "Day/Time")
         for (let i = 1; i < timeSlots.length; i++) {
             const timeRange = timeSlots[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (moment(time, 'HH:mm').isBetween(startTime, endTime, null, '[)')) {
@@ -1150,7 +1150,7 @@ const getTimetableBasedOnSheetName = async (req, res) => {
         // Loop through each time slot (skip the first column header "Day/Time")
         for (let i = 1; i < timeSlots.length; i++) {
             const timeRange = timeSlots[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (moment(time, 'HH:mm').isBetween(startTime, endTime, null, '[)')) {
@@ -1245,12 +1245,12 @@ const postGetRoomData = async (req, res) => {
         room.tubelights = roomsData[i].tubelights;
         room.projectors = roomsData[i].projectors;
 
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=1;
         room.availability = "Available";
 
-        if(day == 0){
+        if(day == 7){
             room.availability = "Available";
         }
         else{
@@ -1260,14 +1260,14 @@ const postGetRoomData = async (req, res) => {
                 timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
             }
 
-            const currentTime = moment();
+            const currentTime = moment.tz('Asia/Kolkata');
             // const currentTime = moment('08:45 AM', 'hh:mm A');
 
 
             let timeSlotIndex = -1;
             for (let i = 0; i < timeArray.length; i++) {
                 const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
                 // Use moment to check if the selected time is within the range
                 if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -1353,12 +1353,12 @@ const getRoomData = async (req, res) => {
         room.tubelights = roomsData[i].tubelights;
         room.projectors = roomsData[i].projectors;
 
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=1;
         room.availability = "Available";
 
-        if(day == 0){
+        if(day == 7){
             room.availability = "Available";
         }
         else{
@@ -1368,14 +1368,14 @@ const getRoomData = async (req, res) => {
                 timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
             }
 
-            const currentTime = moment();
+            const currentTime = moment.tz('Asia/Kolkata');
             // const currentTime = moment('08:45 AM', 'hh:mm A');
 
 
             let timeSlotIndex = -1;
             for (let i = 0; i < timeArray.length; i++) {
                 const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
                 // Use moment to check if the selected time is within the range
                 if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -1475,12 +1475,12 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
         }
         // console.log(timeArray);
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=3;
 
         if(dayPrompt=="sunday" || dayPrompt == "Sunday"){
-            day=0;
+            day=7;
         }
         else if(dayPrompt=="monday" || dayPrompt == "Monday"){
             day=1;
@@ -1501,7 +1501,7 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
             day=6;
         }
 
-        if(day == 0){
+        if(day == 7){
             return res.status(200).json({ location: "Not available", time });
         }
 
@@ -1526,13 +1526,13 @@ const getStudentLocationBasedOnPrompt = async (req, res) => {
         }
 
         // console.log(data);
-        // const currentTime = moment();
+        // const currentTime = moment.tz('Asia/Kolkata');
         const currentTime = moment(timePrompt, 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
             const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -1622,11 +1622,11 @@ const postGetStudentLocation = async (req, res) => {
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
         }
         // console.log(timeArray);
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=3;
 
-        if(day == 0){
+        if(day == 7){
             return res.status(200).json({ location: "Not available", time });
         }
 
@@ -1651,13 +1651,13 @@ const postGetStudentLocation = async (req, res) => {
         }
 
         // console.log(data);
-        const currentTime = moment();
+        const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
             const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -1747,11 +1747,11 @@ const getStudentLocation = async (req, res) => {
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
         }
         // console.log(timeArray);
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=3;
 
-        if(day == 0){
+        if(day == 7){
             return res.status(200).json({ location: "Not available", time });
         }
 
@@ -1776,13 +1776,13 @@ const getStudentLocation = async (req, res) => {
         }
 
         // console.log(data);
-        const currentTime = moment();
+        const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
             const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -1910,13 +1910,13 @@ const getStudentsLocation = async (req, res) => {
             }
     
             // console.log(data);
-            const currentTime = moment();
+            const currentTime = moment.tz('Asia/Kolkata');
             // const currentTime = moment('08:39 AM', 'hh:mm A');
     
             let timeSlotIndex = -1;
             for (let i = 0; i < timeArray.length; i++) {
                 const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-                const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
     
                 // Use moment to check if the selected time is within the range
                 if (currentTime.isBetween(startTime, endTime, null, '[)')) {
@@ -2053,7 +2053,7 @@ const getFacultyLocation = async (req, res) => {
 
         const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('08:39 AM', 'hh:mm A');
-        console.log(currentTime.format('hh:mm A'));
+        // console.log(currentTime.format('hh:mm A'));
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
@@ -2061,14 +2061,14 @@ const getFacultyLocation = async (req, res) => {
             const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
-            console.log(startTime+ " " + endTime);
+            // console.log(startTime+ " " + endTime);
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {
                 timeSlotIndex = i;
                 break;
             }
         }
 
-        console.log(timeSlotIndex);
+        // console.log(timeSlotIndex);
         if(timeSlotIndex==-1){
             return res.status(200).json({ location: "Not available", time });
         }
@@ -2172,11 +2172,11 @@ const validateOtpLogin = async (req, res) => {
             timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
         }
         // console.log(timeArray);
-        const currentDate = new Date();
-        var day = currentDate.getDay();
+        const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
         // day=3;
 
-        if(day == 0){
+        if(day == 7){
             return res.status(200).json({ information });
         }
 
@@ -2201,13 +2201,13 @@ const validateOtpLogin = async (req, res) => {
         }
 
         // console.log(data);
-        const currentTime = moment();
+        const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('08:39 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
             const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
             // Use moment to check if the selected time is within the range
             if (currentTime.isBetween(startTime, endTime, null, '[)')) {

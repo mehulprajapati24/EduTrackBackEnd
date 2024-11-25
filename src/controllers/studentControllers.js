@@ -11,7 +11,7 @@ const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 const nodemailer = require("nodemailer")
 const crypto = require('crypto');
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 
 require('dotenv').config();
@@ -320,7 +320,7 @@ const getStudentTimetableBasedOnTime = async (req, res) => {
       let timeSlotIndex = -1;
       for (let i = 1; i < timetable3[0].length; i++) {
         const timeRange = timetable3[0][i]; // e.g., '08:30 AM to 09:15 AM'
-        const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+        const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
         // Use moment to check if the selected time is within the range
         if (moment(time, 'HH:mm').isBetween(startTime, endTime, null, '[)')) {
@@ -528,12 +528,12 @@ const getSchedule = async (req, res) => {
         timeArray.push(spreadSheetTimeTable.weeklyTimetable.Monday[0][i].time);
     }
 
-    const currentDate = new Date();
-    var day = currentDate.getDay();
+    const currentDate = moment.tz('Asia/Kolkata');
+        const day = currentDate.isoWeekday();
 
     // day=2;
 
-    if(day == 0){
+    if(day == 7){
       return res.status(200).json({ schedule });
     }
 
@@ -557,13 +557,13 @@ const getSchedule = async (req, res) => {
             data = spreadSheetTimeTable.weeklyTimetable.Saturday;
         }
 
-        const currentTime = moment();
+        const currentTime = moment.tz('Asia/Kolkata');
         // const currentTime = moment('09:45 AM', 'hh:mm A');
 
         let timeSlotIndex = -1;
         for (let i = 0; i < timeArray.length; i++) {
           const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
-          const [startTime, endTime] = timeRange.split(' to ').map(t => moment(t, 'hh:mm A'));
+          const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
 
           // Use moment to check if the selected time is within the range
           if (currentTime.isBetween(startTime, endTime, null, '[)')) {
