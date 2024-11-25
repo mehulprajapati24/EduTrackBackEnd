@@ -2009,7 +2009,7 @@ const getFacultyLocation = async (req, res) => {
         const selectedAcademicYear = await AcademicYear.findOne({selected: true});
 
         const spreadSheetFacultyTimeTable = await SpreadSheetFacultyTimeTable.findOne({ facultyName, academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester });
-        // console.log(spreadSheetFacultyTimeTable);
+        console.log(spreadSheetFacultyTimeTable);
         if (!spreadSheetFacultyTimeTable) {
             return res.status(200).json({ location: "Not available", time });
         }
@@ -2063,6 +2063,7 @@ const getFacultyLocation = async (req, res) => {
             }
         }
 
+        console.log(timeSlotIndex);
         if(timeSlotIndex==-1){
             return res.status(200).json({ location: "Not available", time });
         }
@@ -2092,6 +2093,7 @@ const getFacultyLocation = async (req, res) => {
             location = "Not available";
         }
 
+        console.log(location, time);
         res.status(200).json({location, time});
     } catch (error) {
         console.log(error);
