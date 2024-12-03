@@ -1325,76 +1325,111 @@ const postGetRoomData = async (req, res) => {
 
 
 const getRoomData = async (req, res) => {
-    try {
-        const selectedAcademicYear = await AcademicYear.findOne({ selected: true });
+    const selectedAcademicYear = await AcademicYear.findOne({selected: true});
 
-        const [roomsData, spreadSheetTimeTable] = await Promise.all([
-            Resource.find({ academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester }),
-            SpreadSheetTimeTable.find(),
-        ]);
+    var roomsData = await Resource.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
+    var rooms = [];
+    for(let i=0; i<roomsData.length; i++){
+        let room = {
+            _id:'',
+            location:'',
+            acs:'',
+            chairs:'',
+            benches:'',
+            computers:'',
+            fans:'',
+            tubelights:'',
+            projectors:'',
+            availability:''
+        }
+
+        room._id = roomsData[i]._id;
+        room.location = roomsData[i].location;
+        room.acs = roomsData[i].acs;
+        room.chairs = roomsData[i].chairs;
+        room.benches = roomsData[i].benches;
+        room.computers = roomsData[i].computers;
+        room.fans = roomsData[i].fans;
+        room.tubelights = roomsData[i].tubelights;
+        room.projectors = roomsData[i].projectors;
 
         const currentDate = moment.tz('Asia/Kolkata');
         const day = currentDate.isoWeekday();
+        // day=1;
+        room.availability = "Available";
 
-        // Early exit for Sunday
-        if (day === 7) {
-            const rooms = roomsData.map(room => ({
-                _id: room._id,
-                location: room.location,
-                acs: room.acs,
-                chairs: room.chairs,
-                benches: room.benches,
-                computers: room.computers,
-                fans: room.fans,
-                tubelights: room.tubelights,
-                projectors: room.projectors,
-                availability: "Available",
-            }));
-            return res.status(200).json({ rooms });
+        if(day == 7){
+            room.availability = "Available";
         }
+        else{
+            const spreadSheetTimeTable = await SpreadSheetTimeTable.find();
+            const timeArray = [];
+            for(let i=0; i<spreadSheetTimeTable[0].weeklyTimetable.Monday[0].length; i++){
+                timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
+            }
 
-        // Prepare timetable data for the current day
-        const currentDayKey = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day - 1];
-        const timetableForDay = spreadSheetTimeTable.flatMap(sheet => sheet.weeklyTimetable[currentDayKey]);
-        
-        // Create a map for room availability based on timetable
-        const currentTime = moment.tz('Asia/Kolkata');
-        const timeArray = timetableForDay[0]?.map(slot => slot.time) || [];
-        const timeSlotIndex = timeArray.findIndex(timeRange => {
-            const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A', 'Asia/Kolkata'));
-            return currentTime.isBetween(startTime, endTime, null, '[)');
-        });
+            const currentTime = moment.tz('Asia/Kolkata');
+            // const currentTime = moment('08:45 AM', 'hh:mm A');
 
-        const occupiedLocations = new Set();
-        if (timeSlotIndex !== -1) {
-            timetableForDay.forEach(slot => {
-                if (slot[timeSlotIndex]?.location) {
-                    occupiedLocations.add(slot[timeSlotIndex].location);
+
+            let timeSlotIndex = -1;
+            for (let i = 0; i < timeArray.length; i++) {
+                const timeRange = timeArray[i]; // e.g., '08:30 AM to 09:15 AM'
+                const [startTime, endTime] = timeRange.split(' to ').map(t => moment.tz(t, 'hh:mm A',  'Asia/Kolkata'));
+
+                // Use moment to check if the selected time is within the range
+                if (currentTime.isBetween(startTime, endTime, null, '[)')) {
+                    timeSlotIndex = i;
+                    break;
                 }
-            });
+            }
+
+
+            if(timeSlotIndex==-1){
+                room.availability = "Available";
+            }
+            else{
+                for(let i=0; i<spreadSheetTimeTable.length; i++){
+                    let timetableData;
+                    let flag=-1;
+                    if(day==1){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Monday;
+                    }
+                    else if(day==2){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Tuesday;
+                    }
+                    else if(day==3){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Wednesday;
+                    }
+                    else if(day==4){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Thursday;
+                    }
+                    else if(day==5){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Friday;
+                    }
+                    else if(day==6){
+                        timetableData = spreadSheetTimeTable[i].weeklyTimetable.Saturday;
+                    }
+
+                    for(let i=0; i<timetableData.length; i++){
+                        if(room.location==timetableData[i][timeSlotIndex].location){
+                            flag=1;
+                            room.availability="Occupied";
+                            break;
+                        }
+                    }
+                    if(flag==1){
+                        break;
+                    }
+                }
+            }
         }
 
-        // Prepare the final rooms array
-        const rooms = roomsData.map(room => ({
-            _id: room._id,
-            location: room.location,
-            acs: room.acs,
-            chairs: room.chairs,
-            benches: room.benches,
-            computers: room.computers,
-            fans: room.fans,
-            tubelights: room.tubelights,
-            projectors: room.projectors,
-            availability: occupiedLocations.has(room.location) ? "Occupied" : "Available",
-        }));
-
-        return res.status(200).json({ rooms });
-    } catch (error) {
-        console.error("Error fetching room data:", error);
-        return res.status(500).json({ error: "Internal server error" });
+        rooms.push(room);
     }
-};
-
+    // console.log(rooms);
+    return res.status(200).json( {rooms} );
+}
 
 const getStudentLocationBasedOnPrompt = async (req, res) => {
     try {
