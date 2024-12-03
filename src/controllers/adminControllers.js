@@ -1362,7 +1362,7 @@ const getRoomData = async (req, res) => {
             room.availability = "Available";
         }
         else{
-            const spreadSheetTimeTable = await SpreadSheetTimeTable.find();
+            const spreadSheetTimeTable = await SpreadSheetTimeTable.find({academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester});
             const timeArray = [];
             for(let i=0; i<spreadSheetTimeTable[0].weeklyTimetable.Monday[0].length; i++){
                 timeArray.push(spreadSheetTimeTable[0].weeklyTimetable.Monday[0][i].time);
