@@ -1330,7 +1330,7 @@ const getRoomData = async (req, res) => {
 
         const [roomsData, spreadSheetTimeTable] = await Promise.all([
             Resource.find({ academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester }),
-            SpreadSheetTimeTable.find(),
+            SpreadSheetTimeTable.find({ academicYear: selectedAcademicYear.academicYear, semester: selectedAcademicYear.semester }),
         ]);
 
         const currentDate = moment.tz('Asia/Kolkata');
