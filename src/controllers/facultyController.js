@@ -540,7 +540,7 @@ const getFacultyTimetableBasedOnDay = async (req, res) => {
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: initials,
+            range: faculty.facultyClassField,
           });
 
         timetable1 = response.data.values;
@@ -592,7 +592,7 @@ const getFacultyTimetableBasedOnTime = async (req, res) => {
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: initials,
+            range: faculty.facultyClassField,
           });
 
         timetable1 = response.data.values;
